@@ -143,7 +143,7 @@ sliderText.Parent = sliderFrame
 
 local fpsBoostActive = false
 local currentSliderValue = 0
-local localLight = nil
+local screenColorCorrection = nil
 
 local function isEssentialBodyPart(object)
 	if object:IsA("BasePart") then
@@ -214,51 +214,33 @@ end
 
 Workspace.DescendantAdded:Connect(safeEverythingClean)
 
--- ==========================================
--- ระบบไฟจำลองรอบตัวผู้เล่น (ไม่สนใจค่าเซิร์ฟเวอร์)
--- ==========================================
-local function updateLocalLight()
+local function updateScreenBrightness()
 	if not fpsBoostActive then
-		if localLight then pcall(function() localLight:Destroy() end) localLight = nil end
+		if screenColorCorrection then pcall(function() screenColorCorrection:Destroy() end) screenColorCorrection = nil end
 		return
 	end
 	
-	local character = localPlayer.Character
-	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	if not screenColorCorrection or screenColorCorrection.Parent ~= Lighting then
+		if screenColorCorrection then pcall(function() screenColorCorrection:Destroy() end) end
+		screenColorCorrection = Instance.new("ColorCorrectionEffect")
+		screenColorCorrection.Name = "FPS_ScreenBrightness_Overlay"
+		screenColorCorrection.Parent = Lighting
+	end
 	
-	if rootPart then
-		if not localLight or localLight.Parent ~= rootPart then
-			if localLight then pcall(function() localLight:Destroy() end) end
-			localLight = Instance.new("PointLight")
-			localLight.Name = "FPS_Boost_LocalLight"
-			localLight.Shadows = false
-			localLight.Parent = rootPart
-		end
-		
-		-- แปลงค่าสไลเดอร์ (-3 ถึง 3) ให้เป็นความสว่างและระยะส่องของแสงไฟรอบตัว
-		local sliderRatio = (currentSliderValue + 3) / 6 -- สเกล 0 ถึง 1
-		localLight.Brightness = sliderRatio * 15 -- ความเข้มของดวงไฟ
-		localLight.Range = 60 + (sliderRatio * 500) -- ระยะส่องแสง ยิ่งเลื่อนเยอะยิ่งสว่างไกลสุดแมพ
-	end
+	screenColorCorrection.Brightness = currentSliderValue * 0.25
+	screenColorCorrection.Contrast = currentSliderValue * 0.1
 end
-
--- อัปเดตตำแหน่งดวงไฟตามตัวละครตลอดเวลา
-game:GetService("RunService").RenderStepped:Connect(function()
-	if fpsBoostActive then
-		updateLocalLight()
-	end
-end)
 
 local isChangingLight = false
 Lighting.Changed:Connect(function(property)
 	if fpsBoostActive and not isChangingLight then
 		if property == "Brightness" or property == "ExposureCompensation" or property == "FogEnd" or property == "FogColor" then
 			isChangingLight = true
-			Lighting.Brightness = 1.5
-			Lighting.ExposureCompensation = 0.5
+			Lighting.Brightness = 1
+			Lighting.ExposureCompensation = 0
 			Lighting.FogColor = Color3.fromRGB(0, 0, 0)
-			Lighting.FogStart = 50
-			Lighting.FogEnd = 200
+			Lighting.FogStart = 100
+			Lighting.FogEnd = 500
 			isChangingLight = false
 		end
 	end
@@ -276,7 +258,7 @@ local function updateSlider(input)
 	currentSliderValue = math.floor(((percentage * 6) - 3) * 10) / 10
 	sliderText.Text = "Brightness: " .. tostring(currentSliderValue)
 	
-	updateLocalLight()
+	updateScreenBrightness()
 end
 
 sliderBar.InputBegan:Connect(function(input)
@@ -326,21 +308,21 @@ fpsButton.MouseButton1Click:Connect(function()
 			end)
 		end
 		
-		updateLocalLight()
+		updateScreenBrightness()
 		
 		isChangingLight = true
-		Lighting.Brightness = 1.5
-		Lighting.ExposureCompensation = 0.5
+		Lighting.Brightness = 1
+		Lighting.ExposureCompensation = 0
 		Lighting.FogColor = Color3.fromRGB(0, 0, 0)
-		Lighting.FogStart = 50
-		Lighting.FogEnd = 200
+		Lighting.FogStart = 100
+		Lighting.FogEnd = 500
 		isChangingLight = false
 	else
 		fpsButton.Text = "FPS Boost: OFF (Restart Game)"
 		fpsButton.TextColor3 = Color3.fromRGB(255, 60, 60) 
 		sliderFrame.Visible = false 
 		
-		if localLight then pcall(function() localLight:Destroy() end) localLight = nil end
+		if screenColorCorrection then pcall(function() screenColorCorrection:Destroy() end) screenColorCorrection = nil end
 		pcall(function() if terrain then terrain.Decoration = originalGrass end end)
 		
 		isChangingLight = true
