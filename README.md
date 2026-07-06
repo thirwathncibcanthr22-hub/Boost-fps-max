@@ -37,6 +37,9 @@ local terrain = Workspace:FindFirstChildOfClass("Terrain")
 local originalGrass = false
 if terrain then pcall(function() originalGrass = terrain.Decoration end) end
 
+-- ตารางสำหรับจำค่าสีเดิมของวัตถุรอบแมพ เพื่อใช้ดึงสีปกติกลับคืนมา
+local originalColors = {}
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DeltaGodMode_LatestSupported"
 screenGui.ResetOnSpawn = false
@@ -59,7 +62,7 @@ local trackerCorner = Instance.new("UICorner")
 trackerCorner.CornerRadius = UDim.new(0.2, 0)
 trackerCorner.Parent = trackerLabel
 
--- ปุ่มเปิด-ปิด ย่อขนาดเล็ก (ลากย้ายได้)
+-- ปุ่มเปิด-ปิด ย่อขนาดเล็กกะทัดรัด (ลากย้ายได้)
 local toggleGuiButton = Instance.new("TextButton")
 toggleGuiButton.Size = UDim2.new(0, 45, 0, 45) 
 toggleGuiButton.Position = UDim2.new(0.02, 0, 0.15, 0)
@@ -185,24 +188,25 @@ sliderText.TextScaled = true
 sliderText.Font = Enum.Font.SourceSansBold
 sliderText.Parent = sliderFrame
 
-local shadowButton = Instance.new("TextButton")
-shadowButton.Size = UDim2.new(0.4, 0, 0.2, 0)
-shadowButton.Position = UDim2.new(0.075, 0, 0.55, 0)
-shadowButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-shadowButton.BorderSizePixel = 0
-shadowButton.Text = "Shadow: ON"
-shadowButton.TextColor3 = Color3.fromRGB(60, 255, 60)
-shadowButton.TextScaled = true
-shadowButton.Font = Enum.Font.SourceSansBold
-shadowButton.Parent = sliderFrame
+-- ปุ่มสลับโหมดสีเทา/สีปกติ
+local grayModeButton = Instance.new("TextButton")
+grayModeButton.Size = UDim2.new(0.42, 0, 0.2, 0)
+grayModeButton.Position = UDim2.new(0.065, 0, 0.55, 0)
+grayModeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+grayModeButton.BorderSizePixel = 0
+grayModeButton.Text = "Gray Mode: ON"
+grayModeButton.TextColor3 = Color3.fromRGB(60, 255, 60)
+grayModeButton.TextScaled = true
+grayModeButton.Font = Enum.Font.SourceSansBold
+grayModeButton.Parent = sliderFrame
 
-local shadowCorner = Instance.new("UICorner")
-shadowCorner.CornerRadius = UDim.new(0.2, 0)
-shadowCorner.Parent = shadowButton
+local grayModeCorner = Instance.new("UICorner")
+grayModeCorner.CornerRadius = UDim.new(0.2, 0)
+grayModeCorner.Parent = grayModeButton
 
 local fpsCapButton = Instance.new("TextButton")
-fpsCapButton.Size = UDim2.new(0.4, 0, 0.2, 0)
-fpsCapButton.Position = UDim2.new(0.525, 0, 0.55, 0)
+fpsCapButton.Size = UDim2.new(0.42, 0, 0.2, 0)
+fpsCapButton.Position = UDim2.new(0.515, 0, 0.55, 0)
 fpsCapButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 fpsCapButton.BorderSizePixel = 0
 fpsCapButton.Text = "FPS Cap: 60"
@@ -218,7 +222,7 @@ fpsCapCorner.Parent = fpsCapButton
 local fpsBoostActive = false
 local currentSliderValue = 0
 local screenColorCorrection = nil
-local shadowActive = true
+local grayModeActive = true  
 local fpsCapValues = {60, 90, 120, 144, 240, 999}
 local currentFpsCapIndex = 1
 
@@ -248,7 +252,7 @@ local function applyLightingTweaks()
 	Lighting.FogColor = Color3.fromRGB(0, 0, 0)
 	Lighting.FogStart = 100
 	Lighting.FogEnd = 500
-	Lighting.GlobalShadows = shadowActive
+	Lighting.GlobalShadows = false
 	isChangingLight = false
 end
 
@@ -260,7 +264,6 @@ Lighting.Changed:Connect(function(property)
 	end
 end)
 
--- ลูปอัปเดตตัวเลข FPS & Ping (แก้ไขให้สูตร Ping ตรงกับระบบแท้ของเกม)
 local timeBuffer = 0
 local frameBuffer = 0
 RunService.RenderStepped:Connect(function(deltaTime)
@@ -277,7 +280,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
 		
 		if currentPing == 0 then
 			pcall(function()
-				-- แก้ไขจาก * 2000 เป็น * 1000 ให้ตรงตามจริงไม่เบิ้ลสองเท่า
 				currentPing = math.floor(localPlayer:GetNetworkPing() * 1000)
 			end)
 		end
@@ -289,18 +291,6 @@ RunService.RenderStepped:Connect(function(deltaTime)
 		frameBuffer = 0
 		timeBuffer = 0
 	end
-end)
-
-shadowButton.MouseButton1Click:Connect(function()
-	shadowActive = not shadowActive
-	if shadowActive then
-		shadowButton.Text = "Shadow: ON"
-		shadowButton.TextColor3 = Color3.fromRGB(60, 255, 60)
-	else
-		shadowButton.Text = "Shadow: OFF"
-		shadowButton.TextColor3 = Color3.fromRGB(255, 60, 60)
-	end
-	Lighting.GlobalShadows = shadowActive
 end)
 
 fpsCapButton.MouseButton1Click:Connect(function()
@@ -370,12 +360,26 @@ local function getCharacterOwner(object)
 	return nil
 end
 
+-- ฟังก์ชันทำความสะอาดวัตถุ ย้อมสีเทา และลบเอฟเฟคทุกอย่างเกลี้ยงแมพ
 local function safeEverythingClean(object)
 	if not fpsBoostActive then return end
 	pcall(function()
-		if object:IsA("ParticleEmitter") or object:IsA("Sparkles") or object:IsA("Smoke") or object:IsA("Fire") or object:IsA("Beam") or object:IsA("Trail") or object:IsA("Explosion") then
+		-- ลบเอฟเฟคทุกอย่าง (อนุภาค แสงฟุ้ง ควัน ไฟ ลำแสง รอยเท้า ออร่า)
+		if object:IsA("ParticleEmitter") or object:IsA("Sparkles") or object:IsA("Smoke") or 
+		   object:IsA("Fire") or object:IsA("Beam") or object:IsA("Trail") or 
+		   object:IsA("Explosion") or object:IsA("Highlight") or object:IsA("SelectionBox") or
+		   object:IsA("PostEffect") or object:IsA("SunRaysEffect") or object:IsA("BlurEffect") or 
+		   object:IsA("BloomEffect") or object:IsA("DepthOfFieldEffect") then
 			object:Destroy()
 			return
+		end
+		
+		-- ตรวจจับและลบสคริปต์/ทวีมอนิเมชันที่ทำให้วัตถุเคลื่อนไหวสั่นไหว (ถ้าไม่ใช่สคริปต์หลักของตัวละคร)
+		if object:IsA("TweenScript") or object:IsA("AnimationController") then
+			if not getCharacterOwner(object) then
+				object:Destroy()
+				return
+			end
 		end
 		
 		local chrOwner = getCharacterOwner(object)
@@ -384,32 +388,43 @@ local function safeEverythingClean(object)
 				object:Destroy()
 				return
 			end
-			if object:IsA("BasePart") then
-				local name = object.Name:lower()
-				if name:find("effect") or name:find("fx") or name:find("aura") or object.Material == Enum.Material.Neon or not object.CanCollide then
-					if not isEssentialBodyPart(object) then
-						object.Transparency = 1
-						object.CastShadow = false
-					end
-				end
-			end
 			return
 		end
 		
 		if object:IsA("BasePart") then
 			local name = object.Name:lower()
+			
 			if object:IsA("Decal") or object:IsA("Texture") then
 				object:Destroy()
 				return
 			end
-			if name:find("effect") or name:find("fx") or name:find("aura") or name:find("crack") or name:find("debris") or object.Material == Enum.Material.Neon then
-				object.Transparency = 1
-				object.CanCollide = false
-				object.CastShadow = false
-			else
+			
+			-- ลบต้นไม้ พืช พุ่มไม้ ดอกไม้ ออกไปเลย
+			if name:find("leaf") or name:find("leaves") or name:find("foliage") or name:find("bush") or name:find("tree") or name:find("flower") or name:find("plant") or name:find("grass") then
+				object:Destroy()
+				return
+			end
+			
+			-- จัดการวัตถุอื่น ๆ ที่ไม่จำเป็นรอบแมพ
+			if not isEssentialBodyPart(object) then
+				if not originalColors[object] then
+					originalColors[object] = {
+						Color = object.Color,
+						Material = object.Material
+					}
+				end
+				
 				object.Material = Enum.Material.SmoothPlastic
-				object.Reflectance = 0
 				object.CastShadow = false
+				
+				if grayModeActive then
+					-- ย้อมพื้นผิวรอบตัวให้เป็นสีเทาคลีนเรียบเนียนสูงสุด
+					object.BrickColor = BrickColor.new("Medium stone gray")
+				else
+					-- คืนค่าสีสันแบบปกติธรรมดา
+					object.Color = originalColors[object].Color
+				end
+				
 				if object:IsA("MeshPart") then
 					object.RenderFidelity = Enum.RenderFidelity.Performance
 				end
@@ -419,6 +434,27 @@ local function safeEverythingClean(object)
 end
 
 Workspace.DescendantAdded:Connect(safeEverythingClean)
+Lighting.DescendantAdded:Connect(safeEverythingClean) -- เคลียร์เอฟเฟคในสกาย/ไลท์ติ้งด้วย
+
+-- สลับโหมด Gray Mode ย้อมเทา / คืนค่าสีสันปกติ
+grayModeButton.MouseButton1Click:Connect(function()
+	if not fpsBoostActive then return end
+	grayModeActive = not grayModeActive
+	
+	if grayModeActive then
+		grayModeButton.Text = "Gray Mode: ON"
+		grayModeButton.TextColor3 = Color3.fromRGB(60, 255, 60)
+	else
+		grayModeButton.Text = "Gray Mode: OFF"
+		grayModeButton.TextColor3 = Color3.fromRGB(255, 60, 60)
+	end
+	
+	for _, object in pairs(Workspace:GetDescendants()) do
+		if object:IsA("BasePart") and not isEssentialBodyPart(object) then
+			safeEverythingClean(object)
+		end
+	end
+end)
 
 fpsButton.MouseButton1Click:Connect(function()
 	fpsBoostActive = not fpsBoostActive
@@ -432,20 +468,16 @@ fpsButton.MouseButton1Click:Connect(function()
 			if terrain then terrain.Decoration = false end
 			MaterialService.Use2022Materials = false
 			SoundService.AmbientReverb = Enum.AmbientReverb.NoReverb
+			-- เคลียร์พวกเอฟเฟคหน้าจอใน Lighting ทันที
+			for _, effect in pairs(Lighting:GetChildren()) do
+				if effect:IsA("PostEffect") or effect:IsA("BlurEffect") or effect:IsA("BloomEffect") or effect:IsA("SunRaysEffect") then
+					effect:Destroy()
+				end
+			end
 		end)
 		
 		for _, object in pairs(Workspace:GetDescendants()) do
 			safeEverythingClean(object)
-			pcall(function()
-				if object:IsA("BasePart") or object:IsA("Model") then
-					local name = object.Name:lower()
-					if name:find("tree") or name:find("leaf") or name:find("leaves") or name:find("foliage") or name:find("bush") or name:find("pine") then
-						if not getCharacterOwner(object) and not object:FindFirstChildOfClass("Humanoid") then
-							object:Destroy()
-						end
-					end
-				end
-			end)
 		end
 		
 		updateScreenBrightness()
@@ -457,6 +489,17 @@ fpsButton.MouseButton1Click:Connect(function()
 		
 		if screenColorCorrection then pcall(function() screenColorCorrection:Destroy() end) screenColorCorrection = nil end
 		pcall(function() if terrain then terrain.Decoration = originalGrass end end)
+		
+		-- คืนค่าสีสันธรรมดาปกติ และพื้นผิวเดิมให้วัตถุ
+		for object, data in pairs(originalColors) do
+			if object and object.Parent then
+				pcall(function()
+					object.Color = data.Color
+					object.Material = data.Material
+				end)
+			end
+		end
+		originalColors = {}
 		
 		isChangingLight = true
 		Lighting.Brightness = originalBrightness
