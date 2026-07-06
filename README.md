@@ -6,23 +6,11 @@ local MaterialService = game:GetService("MaterialService")
 local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
 
-local targetParent = nil
-local success, err = pcall(function()
-	if CoreGui and not game:GetService("RunService"):IsStudio() then
-		targetParent = CoreGui
-	else
-		targetParent = playerGui
-	end
-end)
-
-if not success or not targetParent then
-	targetParent = playerGui
-end
+local targetParent = playerGui
 
 local originalBrightness = Lighting.Brightness
 local originalExposure = Lighting.ExposureCompensation
@@ -39,21 +27,19 @@ local terrain = Workspace:FindFirstChildOfClass("Terrain")
 local originalGrass = false
 if terrain then pcall(function() originalGrass = terrain.Decoration end) end
 
+-- ใช้เทเบิลเก็บค่าสีแบบถาวร ไม่โดนลบตอนปิดโหมด
 local originalColors = {}
-local originalMeshes = {}
-local cameraConnection = nil
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DeltaGodMode_LatestSupported"
+screenGui.Name = "DeltaOptimizer_V9_FixToggleBug"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = targetParent
 
--- ปรับให้ไม่มีพื้นหลังสีดำ (ลอยคลีนๆ)
 local trackerLabel = Instance.new("TextLabel")
 trackerLabel.Size = UDim2.new(0.35, 0, 0.045, 0)
 trackerLabel.Position = UDim2.new(0.325, 0, 0.01, 0) 
-trackerLabel.BackgroundTransparency = 1 -- เอาพื้นหลังออก 100%
+trackerLabel.BackgroundTransparency = 1 
 trackerLabel.Text = "FPS: Calculating... | Ping: Calculating..."
 trackerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 trackerLabel.TextScaled = true
@@ -61,19 +47,20 @@ trackerLabel.Font = Enum.Font.SourceSansBold
 trackerLabel.Parent = screenGui
 
 local masterContainer = Instance.new("Frame")
-masterContainer.Size = UDim2.new(0, 45, 0, 45)
+masterContainer.Size = UDim2.new(0, 280, 0, 45) 
 masterContainer.Position = UDim2.new(0.02, 0, 0.15, 0)
 masterContainer.BackgroundTransparency = 1
 masterContainer.Parent = screenGui
 
 local toggleGuiButton = Instance.new("TextButton")
-toggleGuiButton.Size = UDim2.new(1, 0, 1, 0) 
+toggleGuiButton.Size = UDim2.new(0, 45, 0, 45) 
 toggleGuiButton.Position = UDim2.new(0, 0, 0, 0)
 toggleGuiButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 toggleGuiButton.Text = "+"
 toggleGuiButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleGuiButton.TextScaled = true
 toggleGuiButton.Font = Enum.Font.SourceSansBold
+toggleGuiButton.ZIndex = 10
 toggleGuiButton.Parent = masterContainer
 
 local toggleCorner = Instance.new("UICorner")
@@ -89,6 +76,7 @@ fpsButton.Text = "boost fps: OFF"
 fpsButton.TextColor3 = Color3.fromRGB(255, 60, 60) 
 fpsButton.TextScaled = true 
 fpsButton.Font = Enum.Font.SourceSansBold
+fpsButton.ZIndex = 5
 fpsButton.Visible = false 
 fpsButton.Parent = masterContainer
 
@@ -97,140 +85,159 @@ mainButtonCorner.CornerRadius = UDim.new(0.3, 0)
 mainButtonCorner.Parent = fpsButton
 
 local sliderFrame = Instance.new("Frame")
-sliderFrame.Size = UDim2.new(1.2, 0, 1.8, 0) 
-sliderFrame.Position = UDim2.new(-0.1, 0, 1.2, 0) 
+sliderFrame.Size = UDim2.new(1.2, 0, 2.2, 0) 
+sliderFrame.Position = UDim2.new(-0.1, 0, 1.15, 0) 
 sliderFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15) 
 sliderFrame.BorderSizePixel = 0
 sliderFrame.Visible = false 
+sliderFrame.ZIndex = 4
 sliderFrame.Parent = fpsButton
 
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0.1, 0) 
+frameCorner.CornerRadius = UDim.new(0.08, 0) 
 frameCorner.Parent = sliderFrame
 
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.FillDirection = Enum.FillDirection.Vertical
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+uiListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+uiListLayout.Padding = UDim.new(0, 8) 
+uiListLayout.Parent = sliderFrame
+
+local sliderText = Instance.new("TextLabel")
+sliderText.Size = UDim2.new(0.9, 0, 0.2, 0)
+sliderText.BackgroundTransparency = 1
+sliderText.Text = "Light: Normal"
+sliderText.TextColor3 = Color3.fromRGB(255, 255, 255)
+sliderText.TextScaled = true
+sliderText.Font = Enum.Font.SourceSansBold
+sliderText.ZIndex = 6
+sliderText.LayoutOrder = 1
+sliderText.Parent = sliderFrame
+
+local sliderBarContainer = Instance.new("Frame")
+sliderBarContainer.Size = UDim2.new(0.9, 0, 0.25, 0)
+sliderBarContainer.BackgroundTransparency = 1
+sliderBarContainer.LayoutOrder = 2
+sliderBarContainer.Parent = sliderFrame
+
 local sliderBar = Instance.new("TextButton")
-sliderBar.Size = UDim2.new(0.85, 0, 0.12, 0) 
-sliderBar.Position = UDim2.new(0.075, 0, 0.35, 0)
+sliderBar.Size = UDim2.new(1, 0, 0.4, 0) 
+sliderBar.Position = UDim2.new(0, 0, 0.3, 0)
 sliderBar.BackgroundColor3 = Color3.fromRGB(45, 45, 45) 
 sliderBar.BorderSizePixel = 0
 sliderBar.Text = ""
 sliderBar.AutoButtonColor = false
-sliderBar.Parent = sliderFrame
+sliderBar.ZIndex = 6
+sliderBar.Parent = sliderBarContainer
 
 local barCorner = Instance.new("UICorner")
 barCorner.CornerRadius = UDim.new(1, 0)
 barCorner.Parent = sliderBar
 
 local sliderButton = Instance.new("Frame")
-sliderButton.Size = UDim2.new(0, 32, 0, 32) 
-sliderButton.Position = UDim2.new(0.5, -16, -0.6, 0) 
+sliderButton.Size = UDim2.new(0, 24, 0, 24) 
+sliderButton.Position = UDim2.new(0.5, -12, -0.3, 0) 
 sliderButton.BackgroundColor3 = Color3.fromRGB(240, 240, 240) 
 sliderButton.BorderSizePixel = 0
+sliderButton.ZIndex = 7
 sliderButton.Parent = sliderBar
 
 local aspectConstraint = Instance.new("UIAspectRatioConstraint")
 aspectConstraint.AspectRatio = 1
-aspectConstraint.AspectType = Enum.AspectType.ScaleWithParentSize
-aspectConstraint.DominantAxis = Enum.DominantAxis.Height
 aspectConstraint.Parent = sliderButton
 
 local circleCorner = Instance.new("UICorner")
 circleCorner.CornerRadius = UDim.new(1, 0) 
 circleCorner.Parent = sliderButton
 
-local sliderText = Instance.new("TextLabel")
-sliderText.Size = UDim2.new(1, 0, 0.2, 0)
-sliderText.Position = UDim2.new(0, 0, 0.1, 0) 
-sliderText.BackgroundTransparency = 1
-sliderText.Text = "Light: Normal"
-sliderText.TextColor3 = Color3.fromRGB(255, 255, 255)
-sliderText.TextScaled = true
-sliderText.Font = Enum.Font.SourceSansBold
-sliderText.Parent = sliderFrame
-
 local grayModeButton = Instance.new("TextButton")
-grayModeButton.Size = UDim2.new(0.42, 0, 0.2, 0)
-grayModeButton.Position = UDim2.new(0.065, 0, 0.55, 0)
+grayModeButton.Size = UDim2.new(0.9, 0, 0.3, 0)
 grayModeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 grayModeButton.BorderSizePixel = 0
 grayModeButton.Text = "Gray Mode: OFF"
 grayModeButton.TextColor3 = Color3.fromRGB(255, 60, 60)
 grayModeButton.TextScaled = true
 grayModeButton.Font = Enum.Font.SourceSansBold
+grayModeButton.ZIndex = 6
+grayModeButton.LayoutOrder = 3
 grayModeButton.Parent = sliderFrame
 
 local grayModeCorner = Instance.new("UICorner")
-grayModeCorner.CornerRadius = UDim.new(0.2, 0)
+grayModeCorner.CornerRadius = UDim.new(0.15, 0)
 grayModeCorner.Parent = grayModeButton
-
-local fpsCapButton = Instance.new("TextButton")
-fpsCapButton.Size = UDim2.new(0.42, 0, 0.2, 0)
-fpsCapButton.Position = UDim2.new(0.515, 0, 0.55, 0)
-fpsCapButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-fpsCapButton.BorderSizePixel = 0
-fpsCapButton.Text = "FPS Cap: 60"
-fpsCapButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-fpsCapButton.TextScaled = true
-fpsCapButton.Font = Enum.Font.SourceSansBold
-fpsCapButton.Parent = sliderFrame
-
-local fpsCapCorner = Instance.new("UICorner")
-fpsCapCorner.CornerRadius = UDim.new(0.2, 0)
-fpsCapCorner.Parent = fpsCapButton
 
 local fpsBoostActive = false
 local percentageValue = 0.5 
 local grayModeActive = false 
-local fpsCapValues = {60, 90, 120, 144, 240, 999}
-local currentFpsCapIndex = 1
 
-local dragToggle = nil
-local dragSpeed = 0.1
+-- ==========================================
+-- 🛡️ ระบบล็อกสัมผัสและเช็คระยะลาก (SMART DRAG & CLICK)
+-- ==========================================
+local draggingGui = false
+local dragInput = nil
 local dragStart = nil
 local startPos = nil
+local hasMovedFar = false 
 
-local function updateInput(input)
-	local delta = input.Position - dragStart
-	local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-	game:GetService("TweenService"):Create(masterContainer, TweenInfo.new(dragSpeed), {Position = position}):Play()
-end
-
-local function enableDragging(guiObject)
-	guiObject.InputBegan:Connect(function(input)
-		if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and not UserInputService:GetFocusedTextBox() then
-			if guiObject == sliderBar or guiObject == sliderButton then return end
-			dragToggle = true
+local function setupDraggable(buttonObject, clickCallback)
+	buttonObject.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			draggingGui = true
+			hasMovedFar = false
 			dragStart = input.Position
 			startPos = masterContainer.Position
-			input.Changed:Connect(function()
+			
+			local connection
+			connection = input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
-					dragToggle = false
+					draggingGui = false
+					connection:Disconnect()
+					
+					if not hasMovedFar then
+						clickCallback()
+					end
 				end
 			end)
 		end
 	end)
 
-	guiObject.InputChanged:Connect(function(input)
+	buttonObject.InputChanged:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-			if dragToggle then
-				updateInput(input)
-			end
+			dragInput = input
 		end
 	end)
 end
 
-enableDragging(toggleGuiButton)
-enableDragging(fpsButton)
-enableDragging(sliderFrame)
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and draggingGui then
+		local delta = input.Position - dragStart
+		if delta.Magnitude > 5 then
+			hasMovedFar = true
+		end
+		masterContainer.Position = UDim2.new(
+			startPos.X.Scale, 
+			startPos.X.Offset + delta.X, 
+			startPos.Y.Scale, 
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
 
-toggleGuiButton.MouseButton1Click:Connect(function()
+setupDraggable(toggleGuiButton, function()
 	fpsButton.Visible = not fpsButton.Visible
 	if fpsButton.Visible then
 		toggleGuiButton.Text = "-"
+		if fpsBoostActive then
+			sliderFrame.Visible = true
+		end
 	else
 		toggleGuiButton.Text = "+"
+		sliderFrame.Visible = false
 	end
 end)
+-- ==========================================
 
 local isChangingLight = false
 local function applyLightingTweaks()
@@ -240,14 +247,16 @@ local function applyLightingTweaks()
 	local targetVal = percentageValue * 255
 	local ambientColor = Color3.fromRGB(targetVal, targetVal, targetVal)
 	
-	Lighting.Brightness = percentageValue * 3
-	Lighting.ExposureCompensation = (percentageValue - 0.5) * 4
-	Lighting.Ambient = ambientColor
-	Lighting.OutdoorAmbient = ambientColor
-	Lighting.FogColor = Color3.fromRGB(0, 0, 0)
-	Lighting.FogStart = 100
-	Lighting.FogEnd = 500
-	Lighting.GlobalShadows = false
+	pcall(function()
+		Lighting.Brightness = percentageValue * 3
+		Lighting.ExposureCompensation = (percentageValue - 0.5) * 4
+		Lighting.Ambient = ambientColor
+		Lighting.OutdoorAmbient = ambientColor
+		Lighting.FogColor = Color3.fromRGB(0, 0, 0)
+		Lighting.FogStart = 100
+		Lighting.FogEnd = 500
+		Lighting.GlobalShadows = false
+	end)
 	
 	isChangingLight = false
 end
@@ -269,70 +278,59 @@ RunService.RenderStepped:Connect(function(deltaTime)
 	if timeBuffer >= 0.5 then
 		local currentFps = math.floor(frameBuffer / timeBuffer)
 		local currentPing = 0
-		
 		pcall(function() currentPing = math.floor(Stats.Network.ServerToClientPing:GetValue() * 1000) end)
 		if currentPing == 0 then pcall(function() currentPing = math.floor(localPlayer:GetNetworkPing() * 1000) end) end
 		
-		local pingString = (currentPing <= 0) and "Loading" or tostring(currentPing) .. " ms"
-		trackerLabel.Text = "FPS: " .. tostring(currentFps) .. " | Ping: " .. pingString
+		trackerLabel.Text = "FPS: " .. tostring(currentFps) .. " | Ping: " .. ((currentPing <= 0) and "Loading" or tostring(currentPing) .. " ms")
 		frameBuffer = 0
 		timeBuffer = 0
 	end
 end)
 
-fpsCapButton.MouseButton1Click:Connect(function()
-	currentFpsCapIndex = currentFpsCapIndex + 1
-	if currentFpsCapIndex > #fpsCapValues then currentFpsCapIndex = 1 end
-	local selectedCap = fpsCapValues[currentFpsCapIndex]
-	fpsCapButton.Text = (selectedCap == 999) and "FPS Cap: INF" or "FPS Cap: " .. tostring(selectedCap)
-	setfpscap(selectedCap)
-end)
-
-local dragging = false
+local draggingSlider = false
 local function updateSlider(input)
 	local barPosition = sliderBar.AbsolutePosition.X
 	local barSize = sliderBar.AbsoluteSize.X
 	local inputPosition = input.Position.X
 	
 	percentageValue = math.clamp((inputPosition - barPosition) / barSize, 0, 1)
-	sliderButton.Position = UDim2.new(percentageValue, - (sliderButton.AbsoluteSize.X / 2), -0.6, 0)
+	sliderButton.Position = UDim2.new(percentageValue, - (sliderButton.AbsoluteSize.X / 2), -0.3, 0)
 	
-	if percentageValue < 0.45 then
-		sliderText.Text = "Light: Dark"
-	elseif percentageValue > 0.55 then
-		sliderText.Text = "Light: Bright"
-	else
-		sliderText.Text = "Light: Normal"
-	end
+	if percentageValue < 0.45 then sliderText.Text = "Light: Dark"
+	elseif percentageValue > 0.55 then sliderText.Text = "Light: Bright"
+	else sliderText.Text = "Light: Normal" end
 	
 	applyLightingTweaks()
 end
 
 sliderBar.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
+		draggingSlider = true
 		updateSlider(input)
 	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+	if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 		updateSlider(input)
 	end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
+		draggingSlider = false
 	end
 end)
 
-local function isEssentialBodyPart(object)
+local function isEssentialObject(object)
+	local name = object.Name:lower()
 	if object:IsA("BasePart") then
-		local name = object.Name
-		if name == "Head" or name == "Torso" or name == "Left Arm" or name == "Right Arm" or name == "Left Leg" or name == "Right Leg" or name:find("Upper") or name:find("Lower") or name:find("Hand") or name:find("Foot") or name == "HumanoidRootPart" then
+		if name == "head" or name == "torso" or name == "left arm" or name == "right arm" or name == "left leg" or name == "right leg" or name:find("upper") or name:find("lower") or name:find("hand") or name:find("foot") or name == "humanoidrootpart" then
 			return true
 		end
+	end
+	if name:find("ball") or name:find("sphere") or name:find("volley") or name:find("tool") or name:find("weapon") then
+		return true
 	end
 	return false
 end
@@ -347,173 +345,80 @@ end
 local function safeEverythingClean(object)
 	if not fpsBoostActive then return end
 	pcall(function()
+		if isEssentialObject(object) then return end
+		local nameLower = object.Name:lower()
+		
 		if object:IsA("ParticleEmitter") or object:IsA("Sparkles") or object:IsA("Smoke") or 
 		   object:IsA("Fire") or object:IsA("Beam") or object:IsA("Trail") or 
 		   object:IsA("Explosion") or object:IsA("Highlight") or object:IsA("SelectionBox") or
 		   object:IsA("PostEffect") or object:IsA("SunRaysEffect") or object:IsA("BlurEffect") or 
 		   object:IsA("BloomEffect") or object:IsA("DepthOfFieldEffect") then
+			if object.Parent and isEssentialObject(object.Parent) then return end
 			object:Destroy()
 			return
 		end
 		
-		if object:IsA("TweenScript") or object:IsA("AnimationController") then
-			if not getCharacterOwner(object) then object:Destroy() return end
-		end
-		
-		local chrOwner = getCharacterOwner(object)
-		if chrOwner then
-			if (object:IsA("Decal") or object:IsA("Texture")) and object.Name ~= "Face" and object.Name ~= "face" then
-				object:Destroy()
-			end
-			return
-		end
-		
 		if object:IsA("BasePart") then
-			local name = object.Name:lower()
-			
 			if object:IsA("Decal") or object:IsA("Texture") then
+				if nameLower ~= "face" and not getCharacterOwner(object) then object:Destroy() end
+				return
+			end
+			
+			if nameLower:find("leaf") or nameLower:find("leaves") or nameLower:find("foliage") or nameLower:find("bush") or nameLower:find("flower") or nameLower:find("plant") or nameLower:find("grass") then
 				object:Destroy()
 				return
 			end
 			
-			if name:find("leaf") or name:find("leaves") or name:find("foliage") or name:find("bush") or name:find("tree") or name:find("flower") or name:find("plant") or name:find("grass") then
-				object:Destroy()
-				return
+			-- บันทึกสีอย่างปลอดภัย หากเปิดรอบสองแล้วมีอยู่แล้วจะไม่เขียนทับค่าว่าง
+			if not originalColors[object] then
+				originalColors[object] = {Color = object.Color, Material = object.Material, BrickColor = object.BrickColor}
 			end
 			
-			if not isEssentialBodyPart(object) then
-				if not originalColors[object] then
-					originalColors[object] = {
-						Color = object.Color,
-						Material = object.Material
-					}
-				end
-				
-				object.Material = Enum.Material.SmoothPlastic
-				object.CastShadow = false
-				
-				if grayModeActive then
-					object.BrickColor = BrickColor.new("Medium stone gray")
-				else
-					object.Color = originalColors[object].Color
-				end
-				
-				if object:IsA("MeshPart") or object:IsA("SpecialMesh") then
-					if not originalMeshes[object] then
-						originalMeshes[object] = {
-							MeshId = object:IsA("MeshPart") and object.MeshId or object.MeshTemplateId,
-							TextureId = object:IsA("MeshPart") and object.TextureID or object.TextureId,
-							MeshType = object:IsA("SpecialMesh") and object.MeshType or nil
-						}
-					end
-					
-					if not grayModeActive then
-						if object:IsA("MeshPart") then
-							object.MeshId = originalMeshes[object].MeshId
-							object.TextureID = originalMeshes[object].TextureId
-						elseif object:IsA("SpecialMesh") then
-							object.MeshType = originalMeshes[object].MeshType
-							object.TextureId = originalMeshes[object].TextureId
-						end
-					else
-						if object:IsA("MeshPart") then
-							object.MeshId = ""
-							object.TextureID = ""
-						elseif object:IsA("SpecialMesh") then
-							object.MeshType = Enum.MeshType.Box
-							object.TextureId = ""
-						end
-					end
-				end
-				
-				if object:IsA("MeshPart") then
-					object.RenderFidelity = Enum.RenderFidelity.Performance
-				end
+			object.Material = Enum.Material.SmoothPlastic
+			object.CastShadow = false
+			
+			if grayModeActive then 
+				object.BrickColor = BrickColor.new("Medium stone gray")
+			else 
+				object.Color = originalColors[object].Color 
 			end
 		end
 	end)
 end
 
-Workspace.DescendantAdded:Connect(safeEverythingClean)
-Lighting.DescendantAdded:Connect(safeEverythingClean)
+Workspace.DescendantAdded:Connect(function(object)
+	if fpsBoostActive then
+		task.wait(0.2) 
+		safeEverythingClean(object)
+	end
+end)
 
 grayModeButton.MouseButton1Click:Connect(function()
 	if not fpsBoostActive then return end
 	grayModeActive = not grayModeActive
 	
-	if grayModeActive then
-		grayModeButton.Text = "Gray Mode: ON"
-		grayModeButton.TextColor3 = Color3.fromRGB(60, 255, 60)
-	else
-		grayModeButton.Text = "Gray Mode: OFF"
-		grayModeButton.TextColor3 = Color3.fromRGB(255, 60, 60)
-	end
+	grayModeButton.Text = grayModeActive and "Gray Mode: ON" or "Gray Mode: OFF"
+	grayModeButton.TextColor3 = grayModeActive and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
 	
-	for _, object in pairs(Workspace:GetDescendants()) do
-		if object:IsA("BasePart") and not isEssentialBodyPart(object) then
-			safeEverythingClean(object)
+	task.spawn(function()
+		local count = 0
+		for _, object in pairs(Workspace:GetDescendants()) do
+			if object:IsA("BasePart") and not isEssentialObject(object) then
+				safeEverythingClean(object)
+				count = count + 1
+				if count % 100 == 0 then task.wait() end
+			end
 		end
+	end)
+end)
+
+pcall(function()
+	if setfpscap then
+		setfpscap(999)
 	end
 end)
 
-local gcRunning = false
-local function startGarbageCollector()
-	gcRunning = true
-	task.spawn(function()
-		while fpsBoostActive and gcRunning do
-			task.wait(60)
-			pcall(function()
-				gcinfo()
-				collectgarbage("collect")
-			end)
-		end
-	end)
-end
-
-local function cleanExistingSkillEffects()
-	for _, object in pairs(Workspace:GetDescendants()) do
-		if object:IsA("BasePart") and not isEssentialBodyPart(object) and not originalColors[object] then
-			local name = object.Name:lower()
-			if name:find("effect") or name:find("skill") or name:find("hit") or name:find("slash") or name:find("magic") or name:find("projectile") then
-				pcall(function() object:Destroy() end)
-			end
-		end
-	end
-end
-
-local function startCameraStabilizer()
-	local camera = Workspace.CurrentCamera
-	if not camera then return end
-	cameraConnection = camera:GetPropertyChangedSignal("CFrame"):Connect(function()
-		if not fpsBoostActive then return end
-		local character = localPlayer.Character
-		if character and character:FindFirstChild("HumanoidRootPart") then
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			if humanoid and humanoid.Health > 0 then
-				pcall(function()
-					camera.CameraSubject = character:FindFirstChild("Head") or character.HumanoidRootPart
-				end)
-			end
-		end
-	end)
-end
-
-local function forceLowGraphics(state)
-	pcall(function()
-		local settings = settings()
-		if settings and settings.Rendering then
-			if state then
-				settings.Rendering.QualityLevel = Enum.QualityLevel.Level01
-				settings.Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.DistanceBased
-			else
-				settings.Rendering.QualityLevel = Enum.QualityLevel.Automatic
-				settings.Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Automatic
-			end
-		end
-	end)
-end
-
-fpsButton.MouseButton1Click:Connect(function()
+setupDraggable(fpsButton, function()
 	fpsBoostActive = not fpsBoostActive
 	
 	if fpsBoostActive then
@@ -532,55 +437,36 @@ fpsButton.MouseButton1Click:Connect(function()
 			end
 		end)
 		
-		cleanExistingSkillEffects()
-		forceLowGraphics(true)
-		
-		for _, object in pairs(Workspace:GetDescendants()) do
-			safeEverythingClean(object)
-		end
+		task.spawn(function()
+			local items = Workspace:GetDescendants()
+			for idx, object in pairs(items) do
+				if not fpsBoostActive then break end
+				safeEverythingClean(object)
+				if idx % 200 == 0 then task.wait() end
+			end
+		end)
 		
 		applyLightingTweaks()
-		startGarbageCollector()
-		startCameraStabilizer()
 	else
 		fpsButton.Text = "boost fps: OFF"
 		fpsButton.TextColor3 = Color3.fromRGB(255, 60, 60) 
 		sliderFrame.Visible = false 
-		gcRunning = false
-		
-		if cameraConnection then
-			cameraConnection:Disconnect()
-			cameraConnection = nil
-		end
+		grayModeActive = false
+		grayModeButton.Text = "Gray Mode: OFF"
+		grayModeButton.TextColor3 = Color3.fromRGB(255, 60, 60)
 		
 		pcall(function() if terrain then terrain.Decoration = originalGrass end end)
-		forceLowGraphics(false)
 		
+		-- คืนค่าสีจริงจากประวัติความจำดั้งเดิมโดยตรง
 		for object, data in pairs(originalColors) do
 			if object and object.Parent then
 				pcall(function()
 					object.Color = data.Color
 					object.Material = data.Material
+					object.BrickColor = data.BrickColor
 				end)
 			end
 		end
-		
-		for object, backup in pairs(originalMeshes) do
-			if object and object.Parent and backup then
-				pcall(function()
-					if object:IsA("MeshPart") then
-						object.MeshId = backup.MeshId
-						object.TextureID = backup.TextureId
-					elseif object:IsA("SpecialMesh") then
-						object.MeshType = backup.MeshType
-						object.TextureId = backup.TextureId
-					end
-				end)
-			end
-		end
-		
-		originalColors = {}
-		originalMeshes = {}
 		
 		isChangingLight = true
 		Lighting.Brightness = originalBrightness
