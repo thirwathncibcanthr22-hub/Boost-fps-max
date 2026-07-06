@@ -30,7 +30,7 @@ if terrain then pcall(function() originalGrass = terrain.Decoration end) end
 local originalColors = {}
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DeltaOptimizer_V16_Perfect"
+screenGui.Name = "DeltaOptimizer_V22_FixTrackerHide"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = targetParent
@@ -43,6 +43,7 @@ trackerLabel.Text = "FPS: Calculating... | Ping: Calculating..."
 trackerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 trackerLabel.TextScaled = true
 trackerLabel.Font = Enum.Font.SourceSansBold
+trackerLabel.Visible = false 
 trackerLabel.Parent = screenGui
 
 local masterContainer = Instance.new("Frame")
@@ -84,7 +85,7 @@ mainButtonCorner.CornerRadius = UDim.new(0.3, 0)
 mainButtonCorner.Parent = fpsButton
 
 local sliderFrame = Instance.new("Frame")
-sliderFrame.Size = UDim2.new(1.2, 0, 2.2, 0) 
+sliderFrame.Size = UDim2.new(1.2, 0, 3.3, 0) 
 sliderFrame.Position = UDim2.new(-0.1, 0, 1.15, 0) 
 sliderFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15) 
 sliderFrame.BorderSizePixel = 0
@@ -105,7 +106,7 @@ uiListLayout.Padding = UDim.new(0, 8)
 uiListLayout.Parent = sliderFrame
 
 local sliderText = Instance.new("TextLabel")
-sliderText.Size = UDim2.new(0.9, 0, 0.2, 0)
+sliderText.Size = UDim2.new(0.9, 0, 0.15, 0)
 sliderText.BackgroundTransparency = 1
 sliderText.Text = "Light: Normal"
 sliderText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -116,7 +117,7 @@ sliderText.LayoutOrder = 1
 sliderText.Parent = sliderFrame
 
 local sliderBarContainer = Instance.new("Frame")
-sliderBarContainer.Size = UDim2.new(0.9, 0, 0.25, 0)
+sliderBarContainer.Size = UDim2.new(0.9, 0, 0.2, 0)
 sliderBarContainer.BackgroundTransparency = 1
 sliderBarContainer.LayoutOrder = 2
 sliderBarContainer.Parent = sliderFrame
@@ -152,7 +153,7 @@ circleCorner.CornerRadius = UDim.new(1, 0)
 circleCorner.Parent = sliderButton
 
 local grayModeButton = Instance.new("TextButton")
-grayModeButton.Size = UDim2.new(0.9, 0, 0.3, 0)
+grayModeButton.Size = UDim2.new(0.9, 0, 0.22, 0)
 grayModeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 grayModeButton.BorderSizePixel = 0
 grayModeButton.Text = "Gray Mode: OFF"
@@ -167,50 +168,58 @@ local grayModeCorner = Instance.new("UICorner")
 grayModeCorner.CornerRadius = UDim.new(0.15, 0)
 grayModeCorner.Parent = grayModeButton
 
+local trackerButton = Instance.new("TextButton")
+trackerButton.Size = UDim2.new(0.9, 0, 0.22, 0)
+trackerButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+trackerButton.BorderSizePixel = 0
+trackerButton.Text = "snow fps/ping: OFF"
+trackerButton.TextColor3 = Color3.fromRGB(255, 60, 60)
+trackerButton.TextScaled = true
+trackerButton.Font = Enum.Font.SourceSansBold
+trackerButton.ZIndex = 6
+trackerButton.LayoutOrder = 4 
+trackerButton.Parent = sliderFrame
+
+local trackerButtonCorner = Instance.new("UICorner")
+trackerButtonCorner.CornerRadius = UDim.new(0.15, 0)
+trackerButtonCorner.Parent = trackerButton
+
 local fpsBoostActive = false
 local percentageValue = 0.5 
 local grayModeActive = false 
+local trackerActive = false 
 
+-- 🛠️ ปรับปรุงระบบลากใหม่: ล็อกให้ปุ่มเครื่องหมายบวก (+) เป็นตัวรับหน้าที่ลากแทนการใช้ตัวปุ่มหลัก เพื่อไม่ให้ทับซ้อนปุ่มคลิกภายใน
 local draggingGui = false
 local dragInput = nil
 local dragStart = nil
 local startPos = nil
-local hasMovedFar = false 
 
-local function setupDraggable(buttonObject, clickCallback)
-	buttonObject.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			draggingGui = true
-			hasMovedFar = false
-			dragStart = input.Position
-			startPos = masterContainer.Position
-			
-			local connection
-			connection = input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					draggingGui = false
-					connection:Disconnect()
-					if not hasMovedFar then
-						clickCallback()
-					end
-				end
-			end)
-		end
-	end)
+toggleGuiButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		draggingGui = true
+		dragStart = input.Position
+		startPos = masterContainer.Position
+		
+		local connection
+		connection = input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				draggingGui = false
+				connection:Disconnect()
+			end
+		end)
+	end
+end)
 
-	buttonObject.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-			dragInput = input
-		end
-	end)
-end
+toggleGuiButton.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
 
 UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and draggingGui then
 		local delta = input.Position - dragStart
-		if delta.Magnitude > 5 then
-			hasMovedFar = true
-		end
 		masterContainer.Position = UDim2.new(
 			startPos.X.Scale, 
 			startPos.X.Offset + delta.X, 
@@ -220,13 +229,12 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
-setupDraggable(toggleGuiButton, function()
+-- ปุ่มคลิกหด-ขยายเมนูหลัก
+toggleGuiButton.MouseButton1Click:Connect(function()
 	fpsButton.Visible = not fpsButton.Visible
 	if fpsButton.Visible then
 		toggleGuiButton.Text = "-"
-		if fpsBoostActive then
-			sliderFrame.Visible = true
-		end
+		sliderFrame.Visible = true 
 	else
 		toggleGuiButton.Text = "+"
 		sliderFrame.Visible = false
@@ -263,6 +271,8 @@ end)
 local timeBuffer = 0
 local frameBuffer = 0
 RunService.RenderStepped:Connect(function(deltaTime)
+	if not (trackerActive or fpsBoostActive) then return end
+	
 	frameBuffer = frameBuffer + 1
 	timeBuffer = timeBuffer + deltaTime
 	if timeBuffer >= 0.5 then
@@ -329,47 +339,49 @@ local function getCharacterOwner(object)
 end
 
 local function safeEverythingClean(object)
-	if not fpsBoostActive then return end
 	pcall(function()
 		if isEssentialObject(object) then return end
 		local nameLower = object.Name:lower()
 		
-		if object:IsA("ParticleEmitter") or object:IsA("Sparkles") or object:IsA("Smoke") or 
-		   object:IsA("Fire") or object:IsA("Beam") or object:IsA("Trail") or 
-		   object:IsA("Explosion") or object:IsA("Highlight") or object:IsA("SelectionBox") or
-		   object:IsA("PointLight") or object:IsA("SurfaceLight") or object:IsA("SpotLight") then
+		if fpsBoostActive then
+			if object:IsA("ParticleEmitter") or object:IsA("Sparkles") or object:IsA("Smoke") or 
+			   object:IsA("Fire") or object:IsA("Beam") or object:IsA("Trail") or 
+			   object:IsA("Explosion") or object:IsA("Highlight") or object:IsA("SelectionBox") or
+			   object:IsA("PointLight") or object:IsA("SurfaceLight") or object:IsA("SpotLight") then
+				if not (object.Parent and isEssentialObject(object.Parent)) then
+					object:Destroy()
+					return
+				end
+			end
 			
-			if object.Parent and isEssentialObject(object.Parent) then return end
-			object:Destroy()
-			return
-		end
-		
-		if object:IsA("Sound") then
-			object.Volume = 0
-			object:Stop()
-			return
-		end
-		
-		if object:IsA("WrapLayer") or object:IsA("WrapTarget") or object:IsA("FaceControls") then
-			object:Destroy()
-			return
-		end
-		
-		if object:IsA("BasePart") then
-			if object:IsA("Decal") or object:IsA("Texture") then
-				if nameLower ~= "face" and not getCharacterOwner(object) then object:Destroy() end
+			if object:IsA("Sound") then
+				object.Volume = 0
+				object:Stop()
 				return
 			end
 			
-			if nameLower:find("leaf") or nameLower:find("leaves") or nameLower:find("foliage") or 
-			   nameLower:find("bush") or nameLower:find("flower") or nameLower:find("plant") or 
-			   nameLower:find("grass") or nameLower:find("effect") or nameLower:find("vfx") or
-			   nameLower:find("chair") or nameLower:find("bench") or nameLower:find("audience") then
+			if object:IsA("WrapLayer") or object:IsA("WrapTarget") or object:IsA("FaceControls") then
 				object:Destroy()
 				return
 			end
 			
-			-- 🛠️ ปรับปรุง: ย้ายการบันทึกค่าดั้งเดิมมาไว้ก่อนการเปลี่ยนวัสดุและสี (กันบัค Gray mode ถาวร)
+			if object:IsA("BasePart") then
+				if object:IsA("Decal") or object:IsA("Texture") then
+					if nameLower ~= "face" and not getCharacterOwner(object) then object:Destroy() end
+					return
+				end
+				
+				if nameLower:find("leaf") or nameLower:find("leaves") or nameLower:find("foliage") or 
+				   nameLower:find("bush") or nameLower:find("flower") or nameLower:find("plant") or 
+				   nameLower:find("grass") or nameLower:find("effect") or nameLower:find("vfx") or
+				   nameLower:find("chair") or nameLower:find("bench") or nameLower:find("audience") then
+					object:Destroy()
+					return
+				end
+			end
+		end
+		
+		if object:IsA("BasePart") then
 			if not originalColors[object] then
 				originalColors[object] = {
 					Color = object.Color, 
@@ -378,33 +390,29 @@ local function safeEverythingClean(object)
 				}
 			end
 			
-			object.Material = Enum.Material.SmoothPlastic
-			object.CastShadow = false
+			if fpsBoostActive then
+				object.Material = Enum.Material.SmoothPlastic
+				object.CastShadow = false
+			else
+				object.Material = originalColors[object].Material
+				object.CastShadow = true
+			end
 			
 			if grayModeActive then 
 				object.BrickColor = BrickColor.new("Medium stone gray")
 			else 
 				object.Color = originalColors[object].Color 
-				object.Material = originalColors[object].Material
+				object.BrickColor = originalColors[object].BrickColor
 			end
 		end
 	end)
 end
 
-Workspace.DescendantAdded:Connect(function(object)
-	if fpsBoostActive then
-		safeEverythingClean(object)
-	end
-end)
+Workspace.DescendantAdded:Connect(safeEverythingClean)
 
 local currentCamera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera")
-currentCamera.DescendantAdded:Connect(function(object)
-	if fpsBoostActive then
-		safeEverythingClean(object)
-	end
-end)
+currentCamera.DescendantAdded:Connect(safeEverythingClean)
 
--- 🛠️ ปรับปรุง: ลูปดักทำลายแบบประหยัดพลังงาน (กิน CPU น้อยลง 80%)
 task.spawn(function()
 	while true do
 		task.wait(3)
@@ -419,7 +427,6 @@ task.spawn(function()
 					end
 				end
 				
-				-- ใช้ระบบเช็คจำกัดวงเฉพาะโมเดลตัวละคร แทนการสแกนลึกมั่วซั่ว
 				for _, player in pairs(Players:GetPlayers()) do
 					local char = player.Character
 					if char then
@@ -446,7 +453,6 @@ task.spawn(function()
 end)
 
 grayModeButton.MouseButton1Click:Connect(function()
-	if not fpsBoostActive then return end
 	grayModeActive = not grayModeActive
 	
 	grayModeButton.Text = grayModeActive and "Gray Mode: ON" or "Gray Mode: OFF"
@@ -464,19 +470,33 @@ grayModeButton.MouseButton1Click:Connect(function()
 	end)
 end)
 
+-- 🛠️ ตรวจสอบจุดนี้: แก้ไข Event ดึงการปิด UI ให้แสดงผลได้อย่างถูกต้อง ไร้บัคขัดขา
+trackerButton.MouseButton1Click:Connect(function()
+	trackerActive = not trackerActive
+	
+	trackerButton.Text = trackerActive and "snow fps/ping: ON" or "snow fps/ping: OFF"
+	trackerButton.TextColor3 = trackerActive and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
+	
+	if trackerActive or fpsBoostActive then
+		trackerLabel.Visible = true
+	else
+		trackerLabel.Visible = false
+	end
+end)
+
 pcall(function()
 	if setfpscap then
 		setfpscap(999)
 	end
 end)
 
-setupDraggable(fpsButton, function()
+fpsButton.MouseButton1Click:Connect(function()
 	fpsBoostActive = not fpsBoostActive
 	
 	if fpsBoostActive then
 		fpsButton.Text = "boost fps: ON"
 		fpsButton.TextColor3 = Color3.fromRGB(60, 255, 60) 
-		sliderFrame.Visible = true 
+		trackerLabel.Visible = true 
 		
 		pcall(function()
 			if terrain then terrain.Decoration = false end
@@ -506,22 +526,30 @@ setupDraggable(fpsButton, function()
 	else
 		fpsButton.Text = "boost fps: OFF"
 		fpsButton.TextColor3 = Color3.fromRGB(255, 60, 60) 
-		sliderFrame.Visible = false 
-		grayModeActive = false
-		grayModeButton.Text = "Gray Mode: OFF"
-		grayModeButton.TextColor3 = Color3.fromRGB(255, 60, 60)
+		
+		if not trackerActive then
+			trackerLabel.Visible = false 
+		end
 		
 		pcall(function() if terrain then terrain.Decoration = originalGrass end end)
 		
-		for object, data in pairs(originalColors) do
-			if object and object.Parent then
-				pcall(function()
-					object.Color = data.Color
-					object.Material = data.Material
-					object.BrickColor = data.BrickColor
-				end)
+		task.spawn(function()
+			local count = 0
+			for object, data in pairs(originalColors) do
+				if object and object.Parent then
+					pcall(function()
+						object.Material = data.Material
+						object.CastShadow = true
+						if not grayModeActive then
+							object.Color = data.Color
+							object.BrickColor = data.BrickColor
+						end
+					end)
+					count = count + 1
+					if count % 150 == 0 then task.wait() end
+				end
 			end
-		end
+		end)
 		
 		isChangingLight = true
 		Lighting.Brightness = originalBrightness
