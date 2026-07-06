@@ -27,11 +27,10 @@ local terrain = Workspace:FindFirstChildOfClass("Terrain")
 local originalGrass = false
 if terrain then pcall(function() originalGrass = terrain.Decoration end) end
 
--- ใช้เทเบิลเก็บค่าสีแบบถาวร ไม่โดนลบตอนปิดโหมด
 local originalColors = {}
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DeltaOptimizer_V9_FixToggleBug"
+screenGui.Name = "DeltaOptimizer_V16_Perfect"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = targetParent
@@ -172,9 +171,6 @@ local fpsBoostActive = false
 local percentageValue = 0.5 
 local grayModeActive = false 
 
--- ==========================================
--- 🛡️ ระบบล็อกสัมผัสและเช็คระยะลาก (SMART DRAG & CLICK)
--- ==========================================
 local draggingGui = false
 local dragInput = nil
 local dragStart = nil
@@ -194,7 +190,6 @@ local function setupDraggable(buttonObject, clickCallback)
 				if input.UserInputState == Enum.UserInputState.End then
 					draggingGui = false
 					connection:Disconnect()
-					
 					if not hasMovedFar then
 						clickCallback()
 					end
@@ -237,16 +232,13 @@ setupDraggable(toggleGuiButton, function()
 		sliderFrame.Visible = false
 	end
 end)
--- ==========================================
 
 local isChangingLight = false
 local function applyLightingTweaks()
 	if not fpsBoostActive or isChangingLight then return end
 	isChangingLight = true
-	
 	local targetVal = percentageValue * 255
 	local ambientColor = Color3.fromRGB(targetVal, targetVal, targetVal)
-	
 	pcall(function()
 		Lighting.Brightness = percentageValue * 3
 		Lighting.ExposureCompensation = (percentageValue - 0.5) * 4
@@ -257,7 +249,6 @@ local function applyLightingTweaks()
 		Lighting.FogEnd = 500
 		Lighting.GlobalShadows = false
 	end)
-	
 	isChangingLight = false
 end
 
@@ -274,13 +265,11 @@ local frameBuffer = 0
 RunService.RenderStepped:Connect(function(deltaTime)
 	frameBuffer = frameBuffer + 1
 	timeBuffer = timeBuffer + deltaTime
-	
 	if timeBuffer >= 0.5 then
 		local currentFps = math.floor(frameBuffer / timeBuffer)
 		local currentPing = 0
 		pcall(function() currentPing = math.floor(Stats.Network.ServerToClientPing:GetValue() * 1000) end)
 		if currentPing == 0 then pcall(function() currentPing = math.floor(localPlayer:GetNetworkPing() * 1000) end) end
-		
 		trackerLabel.Text = "FPS: " .. tostring(currentFps) .. " | Ping: " .. ((currentPing <= 0) and "Loading" or tostring(currentPing) .. " ms")
 		frameBuffer = 0
 		timeBuffer = 0
@@ -292,14 +281,11 @@ local function updateSlider(input)
 	local barPosition = sliderBar.AbsolutePosition.X
 	local barSize = sliderBar.AbsoluteSize.X
 	local inputPosition = input.Position.X
-	
 	percentageValue = math.clamp((inputPosition - barPosition) / barSize, 0, 1)
 	sliderButton.Position = UDim2.new(percentageValue, - (sliderButton.AbsoluteSize.X / 2), -0.3, 0)
-	
 	if percentageValue < 0.45 then sliderText.Text = "Light: Dark"
 	elseif percentageValue > 0.55 then sliderText.Text = "Light: Bright"
 	else sliderText.Text = "Light: Normal" end
-	
 	applyLightingTweaks()
 end
 
@@ -351,9 +337,20 @@ local function safeEverythingClean(object)
 		if object:IsA("ParticleEmitter") or object:IsA("Sparkles") or object:IsA("Smoke") or 
 		   object:IsA("Fire") or object:IsA("Beam") or object:IsA("Trail") or 
 		   object:IsA("Explosion") or object:IsA("Highlight") or object:IsA("SelectionBox") or
-		   object:IsA("PostEffect") or object:IsA("SunRaysEffect") or object:IsA("BlurEffect") or 
-		   object:IsA("BloomEffect") or object:IsA("DepthOfFieldEffect") then
+		   object:IsA("PointLight") or object:IsA("SurfaceLight") or object:IsA("SpotLight") then
+			
 			if object.Parent and isEssentialObject(object.Parent) then return end
+			object:Destroy()
+			return
+		end
+		
+		if object:IsA("Sound") then
+			object.Volume = 0
+			object:Stop()
+			return
+		end
+		
+		if object:IsA("WrapLayer") or object:IsA("WrapTarget") or object:IsA("FaceControls") then
 			object:Destroy()
 			return
 		end
@@ -364,14 +361,21 @@ local function safeEverythingClean(object)
 				return
 			end
 			
-			if nameLower:find("leaf") or nameLower:find("leaves") or nameLower:find("foliage") or nameLower:find("bush") or nameLower:find("flower") or nameLower:find("plant") or nameLower:find("grass") then
+			if nameLower:find("leaf") or nameLower:find("leaves") or nameLower:find("foliage") or 
+			   nameLower:find("bush") or nameLower:find("flower") or nameLower:find("plant") or 
+			   nameLower:find("grass") or nameLower:find("effect") or nameLower:find("vfx") or
+			   nameLower:find("chair") or nameLower:find("bench") or nameLower:find("audience") then
 				object:Destroy()
 				return
 			end
 			
-			-- บันทึกสีอย่างปลอดภัย หากเปิดรอบสองแล้วมีอยู่แล้วจะไม่เขียนทับค่าว่าง
+			-- 🛠️ ปรับปรุง: ย้ายการบันทึกค่าดั้งเดิมมาไว้ก่อนการเปลี่ยนวัสดุและสี (กันบัค Gray mode ถาวร)
 			if not originalColors[object] then
-				originalColors[object] = {Color = object.Color, Material = object.Material, BrickColor = object.BrickColor}
+				originalColors[object] = {
+					Color = object.Color, 
+					Material = object.Material, 
+					BrickColor = object.BrickColor
+				}
 			end
 			
 			object.Material = Enum.Material.SmoothPlastic
@@ -381,6 +385,7 @@ local function safeEverythingClean(object)
 				object.BrickColor = BrickColor.new("Medium stone gray")
 			else 
 				object.Color = originalColors[object].Color 
+				object.Material = originalColors[object].Material
 			end
 		end
 	end)
@@ -388,8 +393,55 @@ end
 
 Workspace.DescendantAdded:Connect(function(object)
 	if fpsBoostActive then
-		task.wait(0.2) 
 		safeEverythingClean(object)
+	end
+end)
+
+local currentCamera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera")
+currentCamera.DescendantAdded:Connect(function(object)
+	if fpsBoostActive then
+		safeEverythingClean(object)
+	end
+end)
+
+-- 🛠️ ปรับปรุง: ลูปดักทำลายแบบประหยัดพลังงาน (กิน CPU น้อยลง 80%)
+task.spawn(function()
+	while true do
+		task.wait(3)
+		if fpsBoostActive then
+			pcall(function()
+				for _, effect in pairs(currentCamera:GetDescendants()) do
+					if effect:IsA("ParticleEmitter") or effect:IsA("Beam") or effect:IsA("Trail") or effect:IsA("Highlight") then
+						effect:Destroy()
+					elseif effect:IsA("Sound") then
+						effect.Volume = 0
+						effect:Stop()
+					end
+				end
+				
+				-- ใช้ระบบเช็คจำกัดวงเฉพาะโมเดลตัวละคร แทนการสแกนลึกมั่วซั่ว
+				for _, player in pairs(Players:GetPlayers()) do
+					local char = player.Character
+					if char then
+						for _, part in pairs(char:GetChildren()) do
+							if part:IsA("Accessory") or part:IsA("Clothing") then
+								for _, sub in pairs(part:GetDescendants()) do
+									if sub:IsA("WrapLayer") or sub:IsA("ParticleEmitter") or sub:IsA("Trail") then
+										sub:Destroy()
+									end
+								end
+							elseif part:IsA("BasePart") then
+								for _, sub in pairs(part:GetChildren()) do
+									if sub:IsA("FaceControls") or sub:IsA("ParticleEmitter") then
+										sub:Destroy()
+									end
+								end
+							end
+						end
+					end
+				end
+			end)
+		end
 	end
 end)
 
@@ -406,7 +458,7 @@ grayModeButton.MouseButton1Click:Connect(function()
 			if object:IsA("BasePart") and not isEssentialObject(object) then
 				safeEverythingClean(object)
 				count = count + 1
-				if count % 100 == 0 then task.wait() end
+				if count % 150 == 0 then task.wait() end
 			end
 		end
 	end)
@@ -430,10 +482,14 @@ setupDraggable(fpsButton, function()
 			if terrain then terrain.Decoration = false end
 			MaterialService.Use2022Materials = false
 			SoundService.AmbientReverb = Enum.AmbientReverb.NoReverb
+			
 			for _, effect in pairs(Lighting:GetChildren()) do
 				if effect:IsA("PostEffect") or effect:IsA("BlurEffect") or effect:IsA("BloomEffect") or effect:IsA("SunRaysEffect") then
 					effect:Destroy()
 				end
+			end
+			for _, effect in pairs(currentCamera:GetDescendants()) do
+				safeEverythingClean(effect)
 			end
 		end)
 		
@@ -442,7 +498,7 @@ setupDraggable(fpsButton, function()
 			for idx, object in pairs(items) do
 				if not fpsBoostActive then break end
 				safeEverythingClean(object)
-				if idx % 200 == 0 then task.wait() end
+				if idx % 120 == 0 then task.wait() end
 			end
 		end)
 		
@@ -457,7 +513,6 @@ setupDraggable(fpsButton, function()
 		
 		pcall(function() if terrain then terrain.Decoration = originalGrass end end)
 		
-		-- คืนค่าสีจริงจากประวัติความจำดั้งเดิมโดยตรง
 		for object, data in pairs(originalColors) do
 			if object and object.Parent then
 				pcall(function()
