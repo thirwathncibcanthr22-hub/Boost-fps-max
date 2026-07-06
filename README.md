@@ -29,6 +29,8 @@ local originalExposure = Lighting.ExposureCompensation
 local originalFogColor = Lighting.FogColor
 local originalFogEnd = Lighting.FogEnd
 local originalFogStart = Lighting.FogStart
+local originalAmbient = Lighting.Ambient
+local originalOutdoorAmbient = Lighting.OutdoorAmbient
 
 local originalUse2022 = true
 pcall(function() originalUse2022 = MaterialService.Use2022Materials end)
@@ -37,8 +39,9 @@ local terrain = Workspace:FindFirstChildOfClass("Terrain")
 local originalGrass = false
 if terrain then pcall(function() originalGrass = terrain.Decoration end) end
 
--- ตารางสำหรับจำค่าสีเดิมของวัตถุรอบแมพ เพื่อใช้ดึงสีปกติกลับคืนมา
 local originalColors = {}
+local originalMeshes = {}
+local cameraConnection = nil
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DeltaGodMode_LatestSupported"
@@ -46,38 +49,37 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = targetParent
 
--- แถบแสดงผล FPS & Ping สีดำตรงกลางขอบบนสุดของจอ
+-- ปรับให้ไม่มีพื้นหลังสีดำ (ลอยคลีนๆ)
 local trackerLabel = Instance.new("TextLabel")
 trackerLabel.Size = UDim2.new(0.35, 0, 0.045, 0)
 trackerLabel.Position = UDim2.new(0.325, 0, 0.01, 0) 
-trackerLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-trackerLabel.BackgroundTransparency = 0.25 
+trackerLabel.BackgroundTransparency = 1 -- เอาพื้นหลังออก 100%
 trackerLabel.Text = "FPS: Calculating... | Ping: Calculating..."
 trackerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 trackerLabel.TextScaled = true
 trackerLabel.Font = Enum.Font.SourceSansBold
 trackerLabel.Parent = screenGui
 
-local trackerCorner = Instance.new("UICorner")
-trackerCorner.CornerRadius = UDim.new(0.2, 0)
-trackerCorner.Parent = trackerLabel
+local masterContainer = Instance.new("Frame")
+masterContainer.Size = UDim2.new(0, 45, 0, 45)
+masterContainer.Position = UDim2.new(0.02, 0, 0.15, 0)
+masterContainer.BackgroundTransparency = 1
+masterContainer.Parent = screenGui
 
--- ปุ่มเปิด-ปิด ย่อขนาดเล็กกะทัดรัด (ลากย้ายได้)
 local toggleGuiButton = Instance.new("TextButton")
-toggleGuiButton.Size = UDim2.new(0, 45, 0, 45) 
-toggleGuiButton.Position = UDim2.new(0.02, 0, 0.15, 0)
+toggleGuiButton.Size = UDim2.new(1, 0, 1, 0) 
+toggleGuiButton.Position = UDim2.new(0, 0, 0, 0)
 toggleGuiButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 toggleGuiButton.Text = "+"
 toggleGuiButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleGuiButton.TextScaled = true
 toggleGuiButton.Font = Enum.Font.SourceSansBold
-toggleGuiButton.Parent = screenGui
+toggleGuiButton.Parent = masterContainer
 
 local toggleCorner = Instance.new("UICorner")
 toggleCorner.CornerRadius = UDim.new(1, 0)
 toggleCorner.Parent = toggleGuiButton
 
--- เมนูหลักตัวยาว
 local fpsButton = Instance.new("TextButton")
 fpsButton.Size = UDim2.new(0, 220, 0, 45) 
 fpsButton.Position = UDim2.new(0, 55, 0, 0) 
@@ -88,53 +90,11 @@ fpsButton.TextColor3 = Color3.fromRGB(255, 60, 60)
 fpsButton.TextScaled = true 
 fpsButton.Font = Enum.Font.SourceSansBold
 fpsButton.Visible = false 
-fpsButton.Parent = toggleGuiButton
+fpsButton.Parent = masterContainer
 
 local mainButtonCorner = Instance.new("UICorner")
 mainButtonCorner.CornerRadius = UDim.new(0.3, 0) 
 mainButtonCorner.Parent = fpsButton
-
--- ระบบลากปุ่มเล็ก
-local dragToggle = nil
-local dragSpeed = 0.15
-local dragStart = nil
-local startPos = nil
-
-local function updateInput(input)
-	local delta = input.Position - dragStart
-	local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-	game:GetService("TweenService"):Create(toggleGuiButton, TweenInfo.new(dragSpeed), {Position = position}):Play()
-end
-
-toggleGuiButton.InputBegan:Connect(function(input)
-	if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and not UserInputService:GetFocusedTextBox() then
-		dragToggle = true
-		dragStart = input.Position
-		startPos = toggleGuiButton.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragToggle = false
-			end
-		end)
-	end
-end)
-
-toggleGuiButton.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		if dragToggle then
-			updateInput(input)
-		end
-	end
-end)
-
-toggleGuiButton.MouseButton1Click:Connect(function()
-	fpsButton.Visible = not fpsButton.Visible
-	if fpsButton.Visible then
-		toggleGuiButton.Text = "-"
-	else
-		toggleGuiButton.Text = "+"
-	end
-end)
 
 local sliderFrame = Instance.new("Frame")
 sliderFrame.Size = UDim2.new(1.2, 0, 1.8, 0) 
@@ -182,20 +142,19 @@ local sliderText = Instance.new("TextLabel")
 sliderText.Size = UDim2.new(1, 0, 0.2, 0)
 sliderText.Position = UDim2.new(0, 0, 0.1, 0) 
 sliderText.BackgroundTransparency = 1
-sliderText.Text = "Brightness: 0"
+sliderText.Text = "Light: Normal"
 sliderText.TextColor3 = Color3.fromRGB(255, 255, 255)
 sliderText.TextScaled = true
 sliderText.Font = Enum.Font.SourceSansBold
 sliderText.Parent = sliderFrame
 
--- ปุ่มสลับโหมดสีเทา/สีปกติ
 local grayModeButton = Instance.new("TextButton")
 grayModeButton.Size = UDim2.new(0.42, 0, 0.2, 0)
 grayModeButton.Position = UDim2.new(0.065, 0, 0.55, 0)
 grayModeButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 grayModeButton.BorderSizePixel = 0
-grayModeButton.Text = "Gray Mode: ON"
-grayModeButton.TextColor3 = Color3.fromRGB(60, 255, 60)
+grayModeButton.Text = "Gray Mode: OFF"
+grayModeButton.TextColor3 = Color3.fromRGB(255, 60, 60)
 grayModeButton.TextScaled = true
 grayModeButton.Font = Enum.Font.SourceSansBold
 grayModeButton.Parent = sliderFrame
@@ -220,45 +179,82 @@ fpsCapCorner.CornerRadius = UDim.new(0.2, 0)
 fpsCapCorner.Parent = fpsCapButton
 
 local fpsBoostActive = false
-local currentSliderValue = 0
-local screenColorCorrection = nil
-local grayModeActive = true  
+local percentageValue = 0.5 
+local grayModeActive = false 
 local fpsCapValues = {60, 90, 120, 144, 240, 999}
 local currentFpsCapIndex = 1
 
-local function updateScreenBrightness()
-	if not fpsBoostActive then
-		if screenColorCorrection then pcall(function() screenColorCorrection:Destroy() end) screenColorCorrection = nil end
-		return
-	end
-	
-	if not screenColorCorrection or screenColorCorrection.Parent ~= Lighting then
-		if screenColorCorrection then pcall(function() screenColorCorrection:Destroy() end) end
-		screenColorCorrection = Instance.new("ColorCorrectionEffect")
-		screenColorCorrection.Name = "FPS_ScreenBrightness_Overlay"
-		screenColorCorrection.Parent = Lighting
-	end
-	
-	screenColorCorrection.Brightness = currentSliderValue * 0.25
-	screenColorCorrection.Contrast = currentSliderValue * 0.1
+local dragToggle = nil
+local dragSpeed = 0.1
+local dragStart = nil
+local startPos = nil
+
+local function updateInput(input)
+	local delta = input.Position - dragStart
+	local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	game:GetService("TweenService"):Create(masterContainer, TweenInfo.new(dragSpeed), {Position = position}):Play()
 end
+
+local function enableDragging(guiObject)
+	guiObject.InputBegan:Connect(function(input)
+		if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and not UserInputService:GetFocusedTextBox() then
+			if guiObject == sliderBar or guiObject == sliderButton then return end
+			dragToggle = true
+			dragStart = input.Position
+			startPos = masterContainer.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragToggle = false
+				end
+			end)
+		end
+	end)
+
+	guiObject.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			if dragToggle then
+				updateInput(input)
+			end
+		end
+	end)
+end
+
+enableDragging(toggleGuiButton)
+enableDragging(fpsButton)
+enableDragging(sliderFrame)
+
+toggleGuiButton.MouseButton1Click:Connect(function()
+	fpsButton.Visible = not fpsButton.Visible
+	if fpsButton.Visible then
+		toggleGuiButton.Text = "-"
+	else
+		toggleGuiButton.Text = "+"
+	end
+end)
 
 local isChangingLight = false
 local function applyLightingTweaks()
 	if not fpsBoostActive or isChangingLight then return end
 	isChangingLight = true
-	Lighting.Brightness = 1
-	Lighting.ExposureCompensation = 0
+	
+	local targetVal = percentageValue * 255
+	local ambientColor = Color3.fromRGB(targetVal, targetVal, targetVal)
+	
+	Lighting.Brightness = percentageValue * 3
+	Lighting.ExposureCompensation = (percentageValue - 0.5) * 4
+	Lighting.Ambient = ambientColor
+	Lighting.OutdoorAmbient = ambientColor
 	Lighting.FogColor = Color3.fromRGB(0, 0, 0)
 	Lighting.FogStart = 100
 	Lighting.FogEnd = 500
 	Lighting.GlobalShadows = false
+	
 	isChangingLight = false
 end
 
 Lighting.Changed:Connect(function(property)
 	if fpsBoostActive and not isChangingLight then
-		if property == "Brightness" or property == "ExposureCompensation" or property == "FogEnd" or property == "FogColor" or property == "GlobalShadows" then
+		if property == "Brightness" or property == "ExposureCompensation" or property == "Ambient" or property == "OutdoorAmbient" or property == "GlobalShadows" then
 			applyLightingTweaks()
 		end
 	end
@@ -274,19 +270,10 @@ RunService.RenderStepped:Connect(function(deltaTime)
 		local currentFps = math.floor(frameBuffer / timeBuffer)
 		local currentPing = 0
 		
-		pcall(function()
-			currentPing = math.floor(Stats.Network.ServerToClientPing:GetValue() * 1000)
-		end)
+		pcall(function() currentPing = math.floor(Stats.Network.ServerToClientPing:GetValue() * 1000) end)
+		if currentPing == 0 then pcall(function() currentPing = math.floor(localPlayer:GetNetworkPing() * 1000) end) end
 		
-		if currentPing == 0 then
-			pcall(function()
-				currentPing = math.floor(localPlayer:GetNetworkPing() * 1000)
-			end)
-		end
-		
-		local pingString = ""
-		if currentPing <= 0 then pingString = "Loading" else pingString = tostring(currentPing) .. " ms" end
-		
+		local pingString = (currentPing <= 0) and "Loading" or tostring(currentPing) .. " ms"
 		trackerLabel.Text = "FPS: " .. tostring(currentFps) .. " | Ping: " .. pingString
 		frameBuffer = 0
 		timeBuffer = 0
@@ -295,15 +282,9 @@ end)
 
 fpsCapButton.MouseButton1Click:Connect(function()
 	currentFpsCapIndex = currentFpsCapIndex + 1
-	if currentFpsCapIndex > #fpsCapValues then
-		currentFpsCapIndex = 1
-	end
+	if currentFpsCapIndex > #fpsCapValues then currentFpsCapIndex = 1 end
 	local selectedCap = fpsCapValues[currentFpsCapIndex]
-	if selectedCap == 999 then
-		fpsCapButton.Text = "FPS Cap: INF"
-	else
-		fpsCapButton.Text = "FPS Cap: " .. tostring(selectedCap)
-	end
+	fpsCapButton.Text = (selectedCap == 999) and "FPS Cap: INF" or "FPS Cap: " .. tostring(selectedCap)
 	setfpscap(selectedCap)
 end)
 
@@ -313,13 +294,18 @@ local function updateSlider(input)
 	local barSize = sliderBar.AbsoluteSize.X
 	local inputPosition = input.Position.X
 	
-	local percentage = math.clamp((inputPosition - barPosition) / barSize, 0, 1)
-	sliderButton.Position = UDim2.new(percentage, - (sliderButton.AbsoluteSize.X / 2), -0.6, 0)
+	percentageValue = math.clamp((inputPosition - barPosition) / barSize, 0, 1)
+	sliderButton.Position = UDim2.new(percentageValue, - (sliderButton.AbsoluteSize.X / 2), -0.6, 0)
 	
-	currentSliderValue = math.floor(((percentage * 6) - 3) * 10) / 10
-	sliderText.Text = "Brightness: " .. tostring(currentSliderValue)
+	if percentageValue < 0.45 then
+		sliderText.Text = "Light: Dark"
+	elseif percentageValue > 0.55 then
+		sliderText.Text = "Light: Bright"
+	else
+		sliderText.Text = "Light: Normal"
+	end
 	
-	updateScreenBrightness()
+	applyLightingTweaks()
 end
 
 sliderBar.InputBegan:Connect(function(input)
@@ -353,18 +339,14 @@ end
 
 local function getCharacterOwner(object)
 	for _, player in pairs(Players:GetPlayers()) do
-		if player.Character and object:IsDescendantOf(player.Character) then
-			return player.Character
-		end
+		if player.Character and object:IsDescendantOf(player.Character) then return player.Character end
 	end
 	return nil
 end
 
--- ฟังก์ชันทำความสะอาดวัตถุ ย้อมสีเทา และลบเอฟเฟคทุกอย่างเกลี้ยงแมพ
 local function safeEverythingClean(object)
 	if not fpsBoostActive then return end
 	pcall(function()
-		-- ลบเอฟเฟคทุกอย่าง (อนุภาค แสงฟุ้ง ควัน ไฟ ลำแสง รอยเท้า ออร่า)
 		if object:IsA("ParticleEmitter") or object:IsA("Sparkles") or object:IsA("Smoke") or 
 		   object:IsA("Fire") or object:IsA("Beam") or object:IsA("Trail") or 
 		   object:IsA("Explosion") or object:IsA("Highlight") or object:IsA("SelectionBox") or
@@ -374,19 +356,14 @@ local function safeEverythingClean(object)
 			return
 		end
 		
-		-- ตรวจจับและลบสคริปต์/ทวีมอนิเมชันที่ทำให้วัตถุเคลื่อนไหวสั่นไหว (ถ้าไม่ใช่สคริปต์หลักของตัวละคร)
 		if object:IsA("TweenScript") or object:IsA("AnimationController") then
-			if not getCharacterOwner(object) then
-				object:Destroy()
-				return
-			end
+			if not getCharacterOwner(object) then object:Destroy() return end
 		end
 		
 		local chrOwner = getCharacterOwner(object)
 		if chrOwner then
 			if (object:IsA("Decal") or object:IsA("Texture")) and object.Name ~= "Face" and object.Name ~= "face" then
 				object:Destroy()
-				return
 			end
 			return
 		end
@@ -399,13 +376,11 @@ local function safeEverythingClean(object)
 				return
 			end
 			
-			-- ลบต้นไม้ พืช พุ่มไม้ ดอกไม้ ออกไปเลย
 			if name:find("leaf") or name:find("leaves") or name:find("foliage") or name:find("bush") or name:find("tree") or name:find("flower") or name:find("plant") or name:find("grass") then
 				object:Destroy()
 				return
 			end
 			
-			-- จัดการวัตถุอื่น ๆ ที่ไม่จำเป็นรอบแมพ
 			if not isEssentialBodyPart(object) then
 				if not originalColors[object] then
 					originalColors[object] = {
@@ -418,11 +393,37 @@ local function safeEverythingClean(object)
 				object.CastShadow = false
 				
 				if grayModeActive then
-					-- ย้อมพื้นผิวรอบตัวให้เป็นสีเทาคลีนเรียบเนียนสูงสุด
 					object.BrickColor = BrickColor.new("Medium stone gray")
 				else
-					-- คืนค่าสีสันแบบปกติธรรมดา
 					object.Color = originalColors[object].Color
+				end
+				
+				if object:IsA("MeshPart") or object:IsA("SpecialMesh") then
+					if not originalMeshes[object] then
+						originalMeshes[object] = {
+							MeshId = object:IsA("MeshPart") and object.MeshId or object.MeshTemplateId,
+							TextureId = object:IsA("MeshPart") and object.TextureID or object.TextureId,
+							MeshType = object:IsA("SpecialMesh") and object.MeshType or nil
+						}
+					end
+					
+					if not grayModeActive then
+						if object:IsA("MeshPart") then
+							object.MeshId = originalMeshes[object].MeshId
+							object.TextureID = originalMeshes[object].TextureId
+						elseif object:IsA("SpecialMesh") then
+							object.MeshType = originalMeshes[object].MeshType
+							object.TextureId = originalMeshes[object].TextureId
+						end
+					else
+						if object:IsA("MeshPart") then
+							object.MeshId = ""
+							object.TextureID = ""
+						elseif object:IsA("SpecialMesh") then
+							object.MeshType = Enum.MeshType.Box
+							object.TextureId = ""
+						end
+					end
 				end
 				
 				if object:IsA("MeshPart") then
@@ -434,9 +435,8 @@ local function safeEverythingClean(object)
 end
 
 Workspace.DescendantAdded:Connect(safeEverythingClean)
-Lighting.DescendantAdded:Connect(safeEverythingClean) -- เคลียร์เอฟเฟคในสกาย/ไลท์ติ้งด้วย
+Lighting.DescendantAdded:Connect(safeEverythingClean)
 
--- สลับโหมด Gray Mode ย้อมเทา / คืนค่าสีสันปกติ
 grayModeButton.MouseButton1Click:Connect(function()
 	if not fpsBoostActive then return end
 	grayModeActive = not grayModeActive
@@ -456,6 +456,63 @@ grayModeButton.MouseButton1Click:Connect(function()
 	end
 end)
 
+local gcRunning = false
+local function startGarbageCollector()
+	gcRunning = true
+	task.spawn(function()
+		while fpsBoostActive and gcRunning do
+			task.wait(60)
+			pcall(function()
+				gcinfo()
+				collectgarbage("collect")
+			end)
+		end
+	end)
+end
+
+local function cleanExistingSkillEffects()
+	for _, object in pairs(Workspace:GetDescendants()) do
+		if object:IsA("BasePart") and not isEssentialBodyPart(object) and not originalColors[object] then
+			local name = object.Name:lower()
+			if name:find("effect") or name:find("skill") or name:find("hit") or name:find("slash") or name:find("magic") or name:find("projectile") then
+				pcall(function() object:Destroy() end)
+			end
+		end
+	end
+end
+
+local function startCameraStabilizer()
+	local camera = Workspace.CurrentCamera
+	if not camera then return end
+	cameraConnection = camera:GetPropertyChangedSignal("CFrame"):Connect(function()
+		if not fpsBoostActive then return end
+		local character = localPlayer.Character
+		if character and character:FindFirstChild("HumanoidRootPart") then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid and humanoid.Health > 0 then
+				pcall(function()
+					camera.CameraSubject = character:FindFirstChild("Head") or character.HumanoidRootPart
+				end)
+			end
+		end
+	end)
+end
+
+local function forceLowGraphics(state)
+	pcall(function()
+		local settings = settings()
+		if settings and settings.Rendering then
+			if state then
+				settings.Rendering.QualityLevel = Enum.QualityLevel.Level01
+				settings.Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.DistanceBased
+			else
+				settings.Rendering.QualityLevel = Enum.QualityLevel.Automatic
+				settings.Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Automatic
+			end
+		end
+	end)
+end
+
 fpsButton.MouseButton1Click:Connect(function()
 	fpsBoostActive = not fpsBoostActive
 	
@@ -468,7 +525,6 @@ fpsButton.MouseButton1Click:Connect(function()
 			if terrain then terrain.Decoration = false end
 			MaterialService.Use2022Materials = false
 			SoundService.AmbientReverb = Enum.AmbientReverb.NoReverb
-			-- เคลียร์พวกเอฟเฟคหน้าจอใน Lighting ทันที
 			for _, effect in pairs(Lighting:GetChildren()) do
 				if effect:IsA("PostEffect") or effect:IsA("BlurEffect") or effect:IsA("BloomEffect") or effect:IsA("SunRaysEffect") then
 					effect:Destroy()
@@ -476,21 +532,30 @@ fpsButton.MouseButton1Click:Connect(function()
 			end
 		end)
 		
+		cleanExistingSkillEffects()
+		forceLowGraphics(true)
+		
 		for _, object in pairs(Workspace:GetDescendants()) do
 			safeEverythingClean(object)
 		end
 		
-		updateScreenBrightness()
 		applyLightingTweaks()
+		startGarbageCollector()
+		startCameraStabilizer()
 	else
 		fpsButton.Text = "boost fps: OFF"
 		fpsButton.TextColor3 = Color3.fromRGB(255, 60, 60) 
 		sliderFrame.Visible = false 
+		gcRunning = false
 		
-		if screenColorCorrection then pcall(function() screenColorCorrection:Destroy() end) screenColorCorrection = nil end
+		if cameraConnection then
+			cameraConnection:Disconnect()
+			cameraConnection = nil
+		end
+		
 		pcall(function() if terrain then terrain.Decoration = originalGrass end end)
+		forceLowGraphics(false)
 		
-		-- คืนค่าสีสันธรรมดาปกติ และพื้นผิวเดิมให้วัตถุ
 		for object, data in pairs(originalColors) do
 			if object and object.Parent then
 				pcall(function()
@@ -499,7 +564,23 @@ fpsButton.MouseButton1Click:Connect(function()
 				end)
 			end
 		end
+		
+		for object, backup in pairs(originalMeshes) do
+			if object and object.Parent and backup then
+				pcall(function()
+					if object:IsA("MeshPart") then
+						object.MeshId = backup.MeshId
+						object.TextureID = backup.TextureId
+					elseif object:IsA("SpecialMesh") then
+						object.MeshType = backup.MeshType
+						object.TextureId = backup.TextureId
+					end
+				end)
+			end
+		end
+		
 		originalColors = {}
+		originalMeshes = {}
 		
 		isChangingLight = true
 		Lighting.Brightness = originalBrightness
@@ -507,6 +588,8 @@ fpsButton.MouseButton1Click:Connect(function()
 		Lighting.FogColor = originalFogColor
 		Lighting.FogStart = originalFogStart
 		Lighting.FogEnd = originalFogEnd
+		Lighting.Ambient = originalAmbient
+		Lighting.OutdoorAmbient = originalOutdoorAmbient
 		Lighting.GlobalShadows = true
 		isChangingLight = false
 		
