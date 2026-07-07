@@ -9,16 +9,17 @@ local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
 
 local originalBrightness, originalAmbient = Lighting.Brightness, Lighting.Ambient
-local originalOutdoorAmbient, originalFogColor = Lighting.OutdoorAmbient, Lighting.FogColor
-local originalFogEnd, originalFogStart = Lighting.FogEnd, Lighting.FogStart
+local originalOutdoorAmbient = Lighting.OutdoorAmbient
+local originalFogStart, originalFogEnd = Lighting.FogStart, Lighting.FogEnd
 
 local originalColors, originalPlayerParts = {}, {}
 local fpsBoostActive, percentageValue, grayModeActive, trackerActive, simplifyPlayersActive = false, 0.5, false, false, false
 
 -- สร้าง UI เมนูหลัก
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "Delta_PureFPS_Combo"
-screenGui.ResetOnSpawn, screenGui.ZIndexBehavior = false, Enum.ZIndexBehavior.Sibling
+screenGui.Name = "PureFPS_AllInOne_v11"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
 local trackerLabel = Instance.new("TextLabel")
@@ -44,23 +45,25 @@ fpsButton.TextColor3, fpsButton.TextScaled, fpsButton.Font = Color3.fromRGB(255,
 fpsButton.ZIndex, fpsButton.Visible, fpsButton.Parent = 5, false, masterContainer
 Instance.new("UICorner", fpsButton).CornerRadius = UDim.new(0.3, 0)
 
+-- ปรับขนาดกรอบให้พอดีกับปุ่มที่เหลือ
 local sliderFrame = Instance.new("Frame")
-sliderFrame.Size, sliderFrame.Position = UDim2.new(1.2, 0, 4.2, 0), UDim2.new(-0.1, 0, 1.15, 0)
+sliderFrame.Size, sliderFrame.Position = UDim2.new(1.25, 0, 5.5, 0), UDim2.new(-0.125, 0, 1.15, 0)
 sliderFrame.BackgroundColor3, sliderFrame.Visible, sliderFrame.ZIndex, sliderFrame.Parent = Color3.fromRGB(15, 15, 15), false, 4, fpsButton
-Instance.new("UICorner", sliderFrame).CornerRadius = UDim.new(0.06, 0)
+Instance.new("UICorner", sliderFrame).CornerRadius = UDim.new(0.05, 0)
 
 local uiListLayout = Instance.new("UIListLayout")
 uiListLayout.FillDirection, uiListLayout.SortOrder = Enum.FillDirection.Vertical, Enum.SortOrder.LayoutOrder
 uiListLayout.HorizontalAlignment, uiListLayout.VerticalAlignment = Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center
-uiListLayout.Padding, uiListLayout.Parent = UDim.new(0, 6), sliderFrame
+uiListLayout.Padding, uiListLayout.Parent = UDim.new(0, 8), sliderFrame
 
+-- 1. แถบสไลเดอร์ปรับแสงสว่าง
 local sliderText = Instance.new("TextLabel")
-sliderText.Size, sliderText.BackgroundTransparency, sliderText.Text = UDim2.new(0.9, 0, 0.12, 0), 1, "Light: Normal"
+sliderText.Size, sliderText.BackgroundTransparency, sliderText.Text = UDim2.new(0.9, 0, 0.1, 0), 1, "Light: Normal"
 sliderText.TextColor3, sliderText.TextScaled, sliderText.Font, sliderText.ZIndex, sliderText.LayoutOrder = Color3.fromRGB(255, 255, 255), true, Enum.Font.SourceSansBold, 6, 1
 sliderText.Parent = sliderFrame
 
 local sliderBarContainer = Instance.new("Frame")
-sliderBarContainer.Size, sliderBarContainer.BackgroundTransparency, sliderBarContainer.LayoutOrder = UDim2.new(0.9, 0, 0.12, 0), 1, 2
+sliderBarContainer.Size, sliderBarContainer.BackgroundTransparency, sliderBarContainer.LayoutOrder = UDim2.new(0.9, 0, 0.08, 0), 1, 2
 sliderBarContainer.Parent = sliderFrame
 
 local sliderBar = Instance.new("TextButton")
@@ -70,26 +73,29 @@ sliderBar.Parent = sliderBarContainer
 Instance.new("UICorner", sliderBar).CornerRadius = UDim.new(1, 0)
 
 local sliderButton = Instance.new("Frame")
-sliderButton.Size, sliderButton.Position = UDim2.new(0, 20, 0, 20), UDim2.new(0.5, -10, -0.3, 0)
+sliderButton.Size, sliderButton.Position = UDim2.new(0, 18, 0, 18), UDim2.new(0.5, -9, -0.2, 0)
 sliderButton.BackgroundColor3, sliderButton.ZIndex, sliderButton.Parent = Color3.fromRGB(240, 240, 240), 7, sliderBar
 Instance.new("UICorner", sliderButton).CornerRadius = UDim.new(1, 0)
 
-local grayModeButton = Instance.new("TextButton")
-grayModeButton.Size, grayModeButton.BackgroundColor3 = UDim2.new(0.9, 0, 0.18, 0), Color3.fromRGB(30, 30, 30)
-grayModeButton.Text, grayModeButton.TextColor3, grayModeButton.TextScaled = "Gray Mode: OFF", Color3.fromRGB(255, 60, 60), true
-grayModeButton.Font, grayModeButton.ZIndex, grayModeButton.LayoutOrder = Enum.Font.SourceSansBold, 6, 3
-grayModeButton.Parent = sliderFrame
-Instance.new("UICorner", grayModeButton).CornerRadius = UDim.new(0.15, 0)
-
+-- ปุ่ม Simplify Players
 local simplifyButton = Instance.new("TextButton")
-simplifyButton.Size, simplifyButton.BackgroundColor3 = UDim2.new(0.9, 0, 0.18, 0), Color3.fromRGB(30, 30, 30)
+simplifyButton.Size, simplifyButton.BackgroundColor3 = UDim2.new(0.92, 0, 0.16, 0), Color3.fromRGB(30, 30, 30)
 simplifyButton.Text, simplifyButton.TextColor3, simplifyButton.TextScaled = "Simplify Players: OFF", Color3.fromRGB(255, 60, 60), true
-simplifyButton.Font, simplifyButton.ZIndex, simplifyButton.LayoutOrder = Enum.Font.SourceSansBold, 6, 4
+simplifyButton.Font, simplifyButton.ZIndex, simplifyButton.LayoutOrder = Enum.Font.SourceSansBold, 6, 3
 simplifyButton.Parent = sliderFrame
 Instance.new("UICorner", simplifyButton).CornerRadius = UDim.new(0.15, 0)
 
+-- ปุ่ม Gray Mode
+local grayModeButton = Instance.new("TextButton")
+grayModeButton.Size, grayModeButton.BackgroundColor3 = UDim2.new(0.92, 0, 0.16, 0), Color3.fromRGB(30, 30, 30)
+grayModeButton.Text, grayModeButton.TextColor3, grayModeButton.TextScaled = "Gray Mode: OFF", Color3.fromRGB(255, 60, 60), true
+grayModeButton.Font, grayModeButton.ZIndex, grayModeButton.LayoutOrder = Enum.Font.SourceSansBold, 6, 4
+grayModeButton.Parent = sliderFrame
+Instance.new("UICorner", grayModeButton).CornerRadius = UDim.new(0.15, 0)
+
+-- ปุ่มแสดง FPS/Ping
 local trackerButton = Instance.new("TextButton")
-trackerButton.Size, trackerButton.BackgroundColor3 = UDim2.new(0.9, 0, 0.18, 0), Color3.fromRGB(30, 30, 30)
+trackerButton.Size, trackerButton.BackgroundColor3 = UDim2.new(0.92, 0, 0.16, 0), Color3.fromRGB(30, 30, 30)
 trackerButton.Text, trackerButton.TextColor3, trackerButton.TextScaled = "show fps/ping: OFF", Color3.fromRGB(255, 60, 60), true
 trackerButton.Font, trackerButton.ZIndex, trackerButton.LayoutOrder = Enum.Font.SourceSansBold, 6, 5
 trackerButton.Parent = sliderFrame
@@ -127,23 +133,35 @@ local function applyLightingTweaks()
 	end)
 end
 
+-- Camera Optimization
 RunService.RenderStepped:Connect(function()
+	local camera = Workspace.CurrentCamera
+	if not camera then return end
 	pcall(function()
-		local camera = Workspace.CurrentCamera
-		if camera and camera.CameraType ~= Enum.CameraType.Custom then camera.CameraType = Enum.CameraType.Custom end
+		if camera.CameraType ~= Enum.CameraType.Custom then camera.CameraType = Enum.CameraType.Custom end
+		if fpsBoostActive then
+			camera.CameraMinZoomDistance = 0.5
+			localPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+		else
+			localPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+		end
 	end)
 end)
 
+-- ลบขยะเอฟเฟกต์รกๆ ทุก 5 วินาที
 task.spawn(function()
 	while task.wait(5) do
-		pcall(function()
-			for _, v in pairs(Workspace:GetDescendants()) do
-				if v:IsA("Explosion") or (v:IsA("BasePart") and (v.Name == "Effect" or v.Name == "Particle")) then v:Destroy() end
-			end
-		end)
+		if fpsBoostActive then
+			pcall(function()
+				for _, v in pairs(Workspace:GetDescendants()) do
+					if v:IsA("Explosion") or v.Name == "Effect" or v.Name == "Particle" or v:IsA("Debris") then v:Destroy() end
+				end
+			end)
+		end
 	end
 end)
 
+-- ระบบนับ FPS / Ping
 local timeBuffer, frameBuffer = 0, 0
 RunService.RenderStepped:Connect(function(deltaTime)
 	if not trackerActive then return end
@@ -157,10 +175,11 @@ RunService.RenderStepped:Connect(function(deltaTime)
 	end
 end)
 
+-- ระบบลากแถบปรับแสง
 local draggingSlider = false
 local function updateSlider(input)
 	percentageValue = math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
-	sliderButton.Position = UDim2.new(percentageValue, -10, -0.3, 0)
+	sliderButton.Position = UDim2.new(percentageValue, percentageValue == 1 and -18 or -9, -0.2, 0)
 	sliderText.Text = percentageValue < 0.45 and "Light: Dark" or (percentageValue > 0.55 and "Light: Bright" or "Light: Normal")
 	applyLightingTweaks()
 end
@@ -173,151 +192,107 @@ local function isEssentialObject(object)
 	return name:find("ball") or name:find("sphere") or name:find("volley")
 end
 
-local function cleanOtherPlayers(character)
+-- ระบบลดดีเทลตัวผู้เล่นอื่น (Simplify Players)
+local function cleanSinglePlayer(character)
 	pcall(function()
-		local player = Players:GetPlayerFromCharacter(character)
-		if player == localPlayer then return end
-		
-		if simplifyPlayersActive then
-			for _, v in pairs(character:GetDescendants()) do
-				if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("GraphicShirt") or v:IsA("ShirtGraphic") or v:IsA("Accessory") or v:IsA("Hat") or v:IsA("CharacterMesh") then
-					if not originalPlayerParts[v] then originalPlayerParts[v] = v.Parent end
-					v.Parent = nil
-				elseif v:IsA("BasePart") then
-					if not originalPlayerParts[v] then originalPlayerParts[v] = {Material = v.Material, Transparency = v.Transparency} end
-					v.Material = Enum.Material.SmoothPlastic
-				end
+		local pl = Players:GetPlayerFromCharacter(character)
+		if pl == localPlayer then return end
+		for _, v in pairs(character:GetDescendants()) do
+			if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("GraphicShirt") or v:IsA("ShirtGraphic") or v:IsA("Accessory") or v:IsA("Hat") then
+				if not originalPlayerParts[v] then originalPlayerParts[v] = v.Parent end
+				v.Parent = nil
+			elseif v:IsA("BasePart") then
+				if not originalPlayerParts[v] then originalPlayerParts[v] = {Material = v.Material} end
+				v.Material = Enum.Material.SmoothPlastic
 			end
 		end
 	end)
 end
 
-local function restoreOtherPlayers()
-	for object, data in pairs(originalPlayerParts) do
-		pcall(function()
-			if typeof(data) == "Instance" then
-				object.Parent = data
-			else
-				object.Material = data.Material
-				object.Transparency = data.Transparency
-			end
-		end)
-	end
-	table.clear(originalPlayerParts)
-end
-
+-- ฟังก์ชันล้างแมพให้เป็นดินน้ำมันเลโก้เกลี้ยงเกลา
 local function safeEverythingClean(object)
 	pcall(function()
 		if isEssentialObject(object) then return end
 		
+		if fpsBoostActive and (object:IsA("Decal") or object:IsA("Texture")) then
+			object.Transparency = 1
+			return
+		end
+		
+		if fpsBoostActive and (object:IsA("MeshPart") or object:IsA("SpecialMesh")) then
+			if not originalColors[object] then originalColors[object] = {Material = object.Material, BrickColor = object.BrickColor, TextureID = object.TextureID} end
+			object.TextureID = ""
+		end
+
 		if fpsBoostActive and (object:IsA("Terrain") or object.Name == "Foliage" or object.Name == "Leaves" or object.Material == Enum.Material.Grass) then
 			if object:IsA("Terrain") then object.Decoration = false else
-				if not originalColors[object] then originalColors[object] = {Material = object.Material, BrickColor = object.BrickColor, Transparency = object.Transparency, CanCollide = object.CanCollide} end
+				if not originalColors[object] then originalColors[object] = {Material = object.Material, BrickColor = object.BrickColor, TextureID = ""} end
 				object.Transparency, object.CanCollide = 1, false return
 			end
 		end
 		
-		if fpsBoostActive and (object:IsA("Decal") or object:IsA("Texture")) and not isEssentialObject(object.Parent) then object:Destroy() return end
-		if fpsBoostActive and (object:IsA("MeshPart") or object:IsA("SpecialMesh")) then object.TextureID = "" end
-		if fpsBoostActive and (object:IsA("ParticleEmitter") or object:IsA("Trail") or object:IsA("Highlight")) then object:Destroy() return end
+		if fpsBoostActive and (object:IsA("Smoke") or object:IsA("Fire") or object:IsA("Sparkles") or object:IsA("ForceField") or object:IsA("ParticleEmitter") or object:IsA("Trail") or object:IsA("Highlight")) then 
+			object:Destroy() return 
+		end
 		
 		if object:IsA("BasePart") then
-			if not originalColors[object] then originalColors[object] = {Material = object.Material, BrickColor = object.BrickColor, Transparency = object.Transparency, CanCollide = object.CanCollide} end
+			if not originalColors[object] then originalColors[object] = {Material = object.Material, BrickColor = object.BrickColor, TextureID = ""} end
 			object.Material = fpsBoostActive and Enum.Material.SmoothPlastic or originalColors[object].Material
 			if fpsBoostActive then object.CastShadow = false end
 			object.BrickColor = grayModeActive and BrickColor.new("Medium stone gray") or originalColors[object].BrickColor
 		end
-		
-		if (object:IsA("Shirt") or object:IsA("Pants") or object:IsA("GraphicShirt") or object:IsA("ShirtGraphic")) and not simplifyPlayersActive then
-			if not originalColors[object] then originalColors[object] = {Template = object.Template} end
-			object.Template = grayModeActive and "" or originalColors[object].Template
-		end
-
-		if object:IsA("BodyColors") and not simplifyPlayersActive then
-			if not originalColors[object] then
-				originalColors[object] = {
-					HeadColor = object.HeadColor, TorsoColor = object.TorsoColor,
-					LeftArmColor = object.LeftArmColor, RightArmColor = object.RightArmColor,
-					LeftLegColor = object.LeftLegColor, RightLegColor = object.RightLegColor
-				}
-			end
-			local grayColor = BrickColor.new("Medium stone gray")
-			if grayModeActive then
-				object.HeadColor, object.TorsoColor = grayColor, grayColor
-				object.LeftArmColor, object.RightArmColor = grayColor, grayColor
-				object.LeftLegColor, object.RightLegColor = grayColor, grayColor
-			else
-				object.HeadColor, object.TorsoColor = originalColors[object].HeadColor, originalColors[object].TorsoColor
-				object.LeftArmColor, object.RightArmColor = originalColors[object].LeftArmColor, originalColors[object].RightArmColor
-				object.LeftLegColor, object.RightLegColor = originalColors[object].LeftLegColor, originalColors[object].RightLegColor
-			end
-		end
 	end)
 end
 
-Workspace.DescendantAdded:Connect(safeEverythingClean)
-
-Players.PlayerAdded:Connect(function(player)
-	player.CharacterAdded:Connect(function(char)
-		task.wait(1)
-		if simplifyPlayersActive then cleanOtherPlayers(char) end
-	end)
-end)
-
-local virtualUser = game:GetService("VirtualUser")
-localPlayer.Idled:Connect(function()
-	if fpsBoostActive then
-		pcall(function()
-			virtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-			task.wait(1)
-			virtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-		end)
+Workspace.DescendantAdded:Connect(function(object)
+	safeEverythingClean(object)
+	if simplifyPlayersActive and object.Parent and object.Parent.Parent == Workspace and Players:GetPlayerFromCharacter(object.Parent) then
+		cleanSinglePlayer(object.Parent)
 	end
 end)
 
+-- ปุ่มเปิดปิดการลดดีเทลตัวผู้เล่นอื่น
 simplifyButton.MouseButton1Click:Connect(function()
 	simplifyPlayersActive = not simplifyPlayersActive
 	simplifyButton.Text = simplifyPlayersActive and "Simplify Players: ON" or "Simplify Players: OFF"
 	simplifyButton.TextColor3 = simplifyPlayersActive and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
 	
 	if simplifyPlayersActive then
-		for _, player in pairs(Players:GetPlayers()) do
-			if player.Character then cleanOtherPlayers(player.Character) end
-		end
-	else
-		restoreOtherPlayers()
-		for _, player in pairs(Players:GetPlayers()) do
-			if player.Character then
-				for _, part in pairs(player.Character:GetDescendants()) do safeEverythingClean(part) end
+		task.spawn(function()
+			local allPlayers = Players:GetPlayers()
+			for i, p in pairs(allPlayers) do
+				if p.Character then cleanSinglePlayer(p.Character) end
+				if i % 5 == 0 then task.wait() end 
 			end
+		end)
+	else
+		for v, parent in pairs(originalPlayerParts) do
+			pcall(function()
+				if typeof(parent) == "Instance" then v.Parent = parent else v.Material = parent.Material end
+			end)
 		end
+		table.clear(originalPlayerParts)
 	end
-	pcall(function() collectgarbage("collect") end)
 end)
 
 grayModeButton.MouseButton1Click:Connect(function()
 	grayModeActive = not grayModeActive
 	grayModeButton.Text = grayModeActive and "Gray Mode: ON" or "Gray Mode: OFF"
 	grayModeButton.TextColor3 = grayModeActive and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
-	
 	if grayModeActive then
-		for _, asset in pairs(Lighting:GetChildren()) do
-			if asset:IsA("Sky") or asset:IsA("Atmosphere") or asset:IsA("Clouds") or asset:IsA("SunRaysEffect") then
-				asset:Destroy()
-			end
-		end
+		for _, asset in pairs(Lighting:GetChildren()) do if asset:IsA("Sky") or asset:IsA("Atmosphere") or asset:IsA("Clouds") or asset:IsA("SunRaysEffect") then asset:Destroy() end end
 		Lighting.Ambient, Lighting.OutdoorAmbient = Color3.fromRGB(120, 120, 120), Color3.fromRGB(120, 120, 120)
 	else
 		Lighting.Ambient, Lighting.OutdoorAmbient = originalAmbient, originalOutdoorAmbient
 	end
 	
-	for _, object in pairs(Workspace:GetDescendants()) do safeEverythingClean(object) end
-	for _, player in pairs(Players:GetPlayers()) do
-		if player.Character then
-			for _, part in pairs(player.Character:GetDescendants()) do safeEverythingClean(part) end
+	task.spawn(function()
+		local allDescendants = Workspace:GetDescendants()
+		for i, object in pairs(allDescendants) do
+			safeEverythingClean(object)
+			if i % 100 == 0 then task.wait() end 
 		end
-	end
-	pcall(function() gcinfo() end)
+	end)
 end)
 
 trackerButton.MouseButton1Click:Connect(function()
@@ -327,7 +302,7 @@ trackerButton.MouseButton1Click:Connect(function()
 	trackerLabel.Visible = trackerActive
 end)
 
--- 🔘 ปุ่มดั้งเดิมมัดรวมความแรง (บวกรวมโหมด Low Graphics เข้าไปข้างในแล้ว)
+-- ปุ่มหลัก Boost FPS (ดินน้ำมันเลโก้ + No Fog ลบหมอกในปุ่มเดียว)
 fpsButton.MouseButton1Click:Connect(function()
 	fpsBoostActive = not fpsBoostActive
 	fpsButton.Text = fpsBoostActive and "boost fps: ON" or "boost fps: OFF"
@@ -336,43 +311,47 @@ fpsButton.MouseButton1Click:Connect(function()
 	if fpsBoostActive then
 		pcall(function() 
 			setfpscap(999) 
-			settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 -- [ฝังผสาน] บังคับกราฟิกต่ำสุด
-			Lighting.GlobalShadows = false -- [ฝังผสาน] ปิดเงาวัดถุทั้งหมดเพื่อลดโหลดการ์ดจอ
+			settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+			Lighting.GlobalShadows = false
+			-- ลบหมอกทันที
+			Lighting.FogStart = 999999
+			Lighting.FogEnd = 999999
 		end)
-		for _, asset in pairs(Lighting:GetChildren()) do
-			if asset:IsA("Sky") or asset:IsA("Atmosphere") or asset:IsA("Clouds") or asset:IsA("SunRaysEffect") then
-				asset:Destroy()
+		for _, asset in pairs(Lighting:GetChildren()) do if asset:IsA("Sky") or asset:IsA("Atmosphere") or asset:IsA("Clouds") or asset:IsA("SunRaysEffect") then asset:Destroy() end end
+		
+		task.spawn(function()
+			local allDescendants = Workspace:GetDescendants()
+			for i, object in pairs(allDescendants) do
+				safeEverythingClean(object)
+				if i % 100 == 0 then task.wait() end 
 			end
-		end
-		for _, object in pairs(Workspace:GetDescendants()) do safeEverythingClean(object) end
+		end)
 		applyLightingTweaks()
-		pcall(function() collectgarbage("collect") end)
 	else
 		pcall(function() 
 			setfpscap(60) 
-			settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic -- คืนค่ากราฟิกออโต้
-			Lighting.GlobalShadows = true -- คืนค่าระบบเงา
+			settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+			Lighting.GlobalShadows = true
+			-- คืนค่าหมอกดั้งเดิมของแมพ
+			Lighting.FogStart = originalFogStart
+			Lighting.FogEnd = originalFogEnd
 		end)
 		for object, data in pairs(originalColors) do
 			pcall(function()
-				if object:IsA("BasePart") then
+				if object:IsA("Decal") or object:IsA("Texture") then
+					object.Transparency = 0
+				elseif object:IsA("MeshPart") or object:IsA("SpecialMesh") then
+					object.TextureID = data.TextureID
+					object.Material = data.Material
+				elseif object:IsA("BasePart") then
 					object.Material = data.Material
 					if not grayModeActive then object.BrickColor = data.BrickColor end
-					if data.Transparency then object.Transparency = data.Transparency end
-					if data.CanCollide ~= nil then object.CanCollide = data.CanCollide end
 					object.CastShadow = true
-				elseif (object:IsA("Shirt") or object:IsA("Pants") or object:IsA("GraphicShirt") or object:IsA("ShirtGraphic")) and not grayModeActive and not simplifyPlayersActive and data.Template then
-					object.Template = data.Template
-				elseif object:IsA("BodyColors") and not grayModeActive and not simplifyPlayersActive then
-					object.HeadColor, object.TorsoColor = data.HeadColor, data.TorsoColor
-					object.LeftArmColor, object.RightArmColor = data.LeftArmColor, data.RightArmColor
-					object.LeftLegColor, object.RightLegColor = data.LeftLegColor, data.RightLegColor
 				end
 			end)
 		end
 		pcall(function() Workspace.Terrain.Decoration = true end)
 		Lighting.Brightness = originalBrightness
 		if not grayModeActive then Lighting.Ambient, Lighting.OutdoorAmbient = originalAmbient, originalOutdoorAmbient end
-		pcall(function() collectgarbage("collect") end)
 	end
 end)
