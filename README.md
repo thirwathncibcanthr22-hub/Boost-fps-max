@@ -21,18 +21,17 @@ pcall(function()
 	originalDiffuse = Lighting.EnvironmentDiffuseScale or 0
 end)
 
-local originalColors, originalPlayerParts, originalMapStates = {}, {}, {}
-local originalSkyObjects = {}
+local originalColors, originalPlayerParts = {}, {}
 local fpsBoostActive, percentageValue, grayModeActive, trackerActive, simplifyPlayersActive = false, 0.5, false, false, false
 local timeBuffer, frameBuffer = 0, 0
 
 pcall(function()
-	if playerGui:FindFirstChild("TSB_InstantAll_v18_5") then playerGui["TSB_InstantAll_v18_5"]:Destroy() end
+	if playerGui:FindFirstChild("TSB_BladeBall_v19_2") then playerGui["TSB_BladeBall_v19_2"]:Destroy() end
 	if playerGui:FindFirstChild("TSB_Tracker_LayerTop") then playerGui["TSB_Tracker_LayerTop"]:Destroy() end
 end)
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TSB_InstantAll_v18_5"
+screenGui.Name = "TSB_BladeBall_v19_2"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
@@ -53,6 +52,7 @@ trackerLabel.Visible, trackerLabel.Parent = false, trackerGui
 local masterContainer = Instance.new("Frame")
 masterContainer.Size, masterContainer.Position = UDim2.new(0, 280, 0, 45), UDim2.new(0.02, 0, 0.15, 0)
 masterContainer.BackgroundTransparency, masterContainer.ZIndex, masterContainer.Parent = 1, 10, screenGui
+masterContainer.Active = false -- ป้องกันการบล็อกคลิกนอก UI
 
 local toggleGuiButton = Instance.new("TextButton")
 toggleGuiButton.Size, toggleGuiButton.BackgroundColor3 = UDim2.new(0, 45, 0, 45), Color3.fromRGB(20, 20, 20)
@@ -62,7 +62,7 @@ Instance.new("UICorner", toggleGuiButton).CornerRadius = UDim.new(1, 0)
 
 local fpsButton = Instance.new("TextButton")
 fpsButton.Size, fpsButton.Position = UDim2.new(0, 220, 0, 45), UDim2.new(0, 55, 0, 0)
-fpsButton.BackgroundColor3, fpsButton.Text = Color3.fromRGB(15, 15, 15), "boost fps: OFF"
+fpsButton.BackgroundColor3, fpsButton.Text = Color3.fromRGB(15, 15, 15), "boost fps (ลดเอฟเฟกต์): OFF"
 fpsButton.TextColor3, fpsButton.TextScaled, fpsButton.Font = Color3.fromRGB(255, 60, 60), true, Enum.Font.SourceSansBold
 fpsButton.ZIndex, fpsButton.Visible, fpsButton.Parent = 5, false, masterContainer
 Instance.new("UICorner", fpsButton).CornerRadius = UDim.new(0.3, 0)
@@ -71,6 +71,7 @@ local sliderFrame = Instance.new("Frame")
 sliderFrame.Size, sliderFrame.Position = UDim2.new(1.25, 0, 0, 0), UDim2.new(-0.125, 0, 1.15, 0)
 sliderFrame.AutomaticSize = Enum.AutomaticSize.Y
 sliderFrame.BackgroundColor3, sliderFrame.Visible, sliderFrame.ZIndex, sliderFrame.Parent = Color3.fromRGB(15, 15, 15), false, 4, fpsButton
+sliderFrame.Active = false
 Instance.new("UICorner", sliderFrame).CornerRadius = UDim.new(0.05, 0)
 
 local uiListLayout = Instance.new("UIListLayout")
@@ -89,6 +90,7 @@ sliderText.Parent = sliderFrame
 
 local sliderBarContainer = Instance.new("Frame")
 sliderBarContainer.Size, sliderBarContainer.BackgroundTransparency, sliderBarContainer.LayoutOrder = UDim2.new(0.9, 0, 0, 20), 1, 2
+sliderBarContainer.Active = false
 sliderBarContainer.Parent = sliderFrame
 
 local sliderBar = Instance.new("TextButton")
@@ -100,6 +102,7 @@ Instance.new("UICorner", sliderBar).CornerRadius = UDim.new(1, 0)
 local sliderButton = Instance.new("Frame")
 sliderButton.Size, sliderButton.Position = UDim2.new(0, 18, 0, 18), UDim2.new(0.5, -9, -0.2, 0)
 sliderButton.BackgroundColor3, sliderButton.ZIndex, sliderButton.Parent = Color3.fromRGB(240, 240, 240), 7, sliderBar
+sliderButton.Active = false
 Instance.new("UICorner", sliderButton).CornerRadius = UDim.new(1, 0)
 
 local simplifyButton = Instance.new("TextButton")
@@ -123,8 +126,8 @@ trackerButton.Font, trackerButton.ZIndex, trackerButton.LayoutOrder = Enum.Font.
 trackerButton.Parent = sliderFrame
 Instance.new("UICorner", trackerButton).CornerRadius = UDim.new(0.15, 0)
 
--- ลาก GUI
-local draggingGui, dragInput, dragStart, startPos = false
+-- Drag GUI System (ย้ายตำแหน่งได้ปกติ ไม่ขัดขวางการกดนอก UI)
+local draggingGui, dragStart, startPos = false
 toggleGuiButton.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		draggingGui, dragStart, startPos = true, input.Position, masterContainer.Position
@@ -147,29 +150,54 @@ toggleGuiButton.MouseButton1Click:Connect(function()
 end)
 
 local function applyLightingTweaks()
-	if not fpsBoostActive then return end
 	pcall(function()
-		local targetVal = percentageValue * 255
-		Lighting.Brightness = percentageValue * 3
+		local adjustedVal = percentageValue * 2.0
+		local ambientVal = math.clamp(percentageValue * 200, 15, 200)
+		
+		Lighting.Brightness = adjustedVal
 		if not grayModeActive then 
-			Lighting.Ambient = Color3.fromRGB(targetVal, targetVal, targetVal)
-			Lighting.OutdoorAmbient = Color3.fromRGB(targetVal, targetVal, targetVal)
+			Lighting.Ambient = Color3.fromRGB(ambientVal, ambientVal, ambientVal)
+			Lighting.OutdoorAmbient = Color3.fromRGB(ambientVal, ambientVal, ambientVal)
 		end
 	end)
 end
 
+-- ปรับปรุงระบบ Slider ไม่ให้ขโมย Focus หน้าจอภายนอก
 local draggingSlider = false
 local function updateSlider(input)
 	pcall(function()
 		percentageValue = math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
 		sliderButton.Position = UDim2.new(percentageValue, percentageValue == 1 and -18 or -9, -0.2, 0)
-		sliderText.Text = percentageValue < 0.45 and "Light: Dark" or (percentageValue > 0.55 and "Light: Bright" or "Light: Normal")
+		
+		if percentageValue < 0.35 then
+			sliderText.Text = "Light: Dark Mode"
+		elseif percentageValue > 0.65 then
+			sliderText.Text = "Light: Bright Mode"
+		else
+			sliderText.Text = "Light: Normal View"
+		end
 		applyLightingTweaks()
 	end)
 end
-sliderBar.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingSlider = true updateSlider(input) end end)
-UserInputService.InputChanged:Connect(function(input) if draggingSlider then updateSlider(input) end end)
-UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingSlider = false end end)
+
+sliderBar.InputBegan:Connect(function(input) 
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+		draggingSlider = true 
+		updateSlider(input) 
+	end 
+end)
+
+UserInputService.InputChanged:Connect(function(input) 
+	if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then 
+		updateSlider(input) 
+	end 
+end)
+
+UserInputService.InputEnded:Connect(function(input) 
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+		draggingSlider = false 
+	end 
+end)
 
 -- FPS/Ping Counter
 RunService.RenderStepped:Connect(function(deltaTime)
@@ -187,20 +215,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
 	end
 end)
 
-local function isMapStructure(object)
-	if not object:IsA("BasePart") then return false end
-	if object.Parent and Players:GetPlayerFromCharacter(object.Parent) then return false end
-	local name = object.Name:lower()
-	local pName = object.Parent and object.Parent.Name:lower() or ""
-	if name:find("building") or name:find("wall") or name:find("mountain") or name:find("rock") or name:find("tree") or name:find("pillar") or name:find("house") or name:find("destruct") or name:find("map") or name:find("statue") then return true end
-	if pName:find("building") or pName:find("wall") or pName:find("map") or pName:find("scenery") or pName:find("stage") or pName:find("prop") then return true end
-	if object.Size.X > 25 or object.Size.Y > 25 or object.Size.Z > 25 then
-		if not name:find("floor") and not name:find("ground") and not name:find("baseplate") then return true end
-	end
-	return false
-end
-
--- Instant Execution (จัดการแมพและตัวละครอื่นทันทีรอบเดียว)
+-- Mass Clean
 local function runMassClean()
 	for _, object in pairs(Workspace:GetDescendants()) do
 		pcall(function()
@@ -228,6 +243,10 @@ local function runMassClean()
 			end
 			
 			local objName = object.Name:lower()
+			if objName:find("ball") or objName:find("sword") or objName:find("weapon") or objName:find("target") or objName:find("indicator") or objName:find("ui") then 
+				return 
+			end
+
 			if fpsBoostActive then
 				if objName:find("dash") or objName:find("wind") or objName:find("trail") or objName:find("sweep") or objName:find("burst") or objName:find("rubble") or objName:find("break") or objName:find("shattered") or objName:find("destruction") or objName:find("effect") or objName:find("particle") or objName:find("rocks") or objName:find("debris") or objName:find("groundcrack") then
 					object:Destroy() return
@@ -248,13 +267,6 @@ local function runMassClean()
 			if object:IsA("BasePart") then
 				if not originalColors[object] then originalColors[object] = {Material = object.Material, BrickColor = object.BrickColor, TextureID = ""} end
 				
-				if fpsBoostActive and isMapStructure(object) then
-					if not originalMapStates[object] then originalMapStates[object] = {Transparency = object.Transparency, CanCollide = object.CanCollide} end
-					object.Transparency = 1
-					object.CanCollide = false
-					return
-				end
-
 				object.Material = fpsBoostActive and Enum.Material.SmoothPlastic or originalColors[object].Material
 				if fpsBoostActive then object.CastShadow = false end
 				object.BrickColor = grayModeActive and BrickColor.new("Dark stone gray") or originalColors[object].BrickColor
@@ -263,7 +275,6 @@ local function runMassClean()
 	end
 end
 
--- Instant Simplify Players
 simplifyButton.MouseButton1Click:Connect(function()
 	simplifyPlayersActive = not simplifyPlayersActive
 	simplifyButton.Text = simplifyPlayersActive and "Simplify Players: ON" or "Simplify Players: OFF"
@@ -293,7 +304,6 @@ simplifyButton.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Instant Gray Mode
 grayModeButton.MouseButton1Click:Connect(function()
 	grayModeActive = not grayModeActive
 	grayModeButton.Text = grayModeActive and "Gray Mode: ON" or "Gray Mode: OFF"
@@ -304,7 +314,7 @@ grayModeButton.MouseButton1Click:Connect(function()
 			Lighting.Ambient = Color3.fromRGB(55, 55, 55)
 			Lighting.OutdoorAmbient = Color3.fromRGB(55, 55, 55)
 		else
-			Lighting.Ambient, Lighting.OutdoorAmbient = originalAmbient, originalOutdoorAmbient
+			applyLightingTweaks()
 		end
 	end)
 	runMassClean()
@@ -317,7 +327,6 @@ trackerButton.MouseButton1Click:Connect(function()
 	trackerLabel.Visible = trackerActive
 end)
 
--- Instant Boost FPS
 fpsButton.MouseButton1Click:Connect(function()
 	fpsBoostActive = not fpsBoostActive
 	fpsButton.Text = fpsBoostActive and "boost fps: ON" or "boost fps: OFF"
@@ -334,9 +343,8 @@ fpsButton.MouseButton1Click:Connect(function()
 			pcall(function() Lighting.EnvironmentDiffuseScale = 0 end)
 			
 			for _, child in pairs(Lighting:GetChildren()) do
-				if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("Clouds") or child:IsA("SunRays") or child:IsA("Bloom") or child:IsA("Blur") or child:IsA("ColorCorrection") then
-					originalSkyObjects[child] = child.Parent
-					child.Parent = nil
+				if child:IsA("Bloom") or child:IsA("Blur") or child:IsA("SunRays") then
+					child.Enabled = false
 				end
 			end
 			
@@ -351,18 +359,11 @@ fpsButton.MouseButton1Click:Connect(function()
 			pcall(function() Lighting.EnvironmentSpecularScale = originalSpecular end)
 			pcall(function() Lighting.EnvironmentDiffuseScale = originalDiffuse end)
 			
-			for obj, parent in pairs(originalSkyObjects) do
-				pcall(function() obj.Parent = parent end)
+			for _, child in pairs(Lighting:GetChildren()) do
+				if child:IsA("Bloom") or child:IsA("Blur") or child:IsA("SunRays") then
+					child.Enabled = true
+				end
 			end
-			table.clear(originalSkyObjects)
-			
-			for object, data in pairs(originalMapStates) do
-				pcall(function()
-					object.Transparency = data.Transparency
-					object.CanCollide = data.CanCollide
-				end)
-			end
-			table.clear(originalMapStates)
 
 			for object, data in pairs(originalColors) do
 				pcall(function()
@@ -378,8 +379,7 @@ fpsButton.MouseButton1Click:Connect(function()
 			
 			runMassClean()
 			Workspace.Terrain.Decoration = true
-			Lighting.Brightness = originalBrightness
-			if not grayModeActive then Lighting.Ambient, Lighting.OutdoorAmbient = originalAmbient, originalOutdoorAmbient end
+			applyLightingTweaks()
 		end
 	end)
 end)
